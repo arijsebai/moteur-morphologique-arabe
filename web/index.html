@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محرك التحليل الصرفي العربي</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>محرك التحليل الصرفي العربي</h1>
+        <section class="card">
+            <h2>تحليل كلمة</h2>
+            <div class="input-section">
+                <input type="text" id="wordInput" placeholder="أدخل الكلمة العربية">
+                <button onclick="analyzeWord()">تحليل</button>
+            </div>
+            <div id="results" class="results"></div>
+        </section>
+
+        <section class="card">
+            <h2>إدارة الجذور</h2>
+            <div class="input-section">
+                <input type="text" id="rootInput" placeholder="أدخل جذر ثلاثي">
+                <button onclick="addRoot()">إضافة الجذر</button>
+                <button class="secondary" onclick="loadRoots()">عرض الجذور</button>
+            </div>
+            <div id="rootsList" class="results"></div>
+        </section>
+
+        <section class="card">
+            <h2>توليد المشتقات</h2>
+            <div class="input-section">
+                <input type="text" id="deriveRootInput" placeholder="أدخل الجذر">
+                <button onclick="generateDerives()">توليد</button>
+            </div>
+            <div id="derivesList" class="results"></div>
+        </section>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

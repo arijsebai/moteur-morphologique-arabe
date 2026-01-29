@@ -1,0 +1,4 @@
+# Fichier de test pour les racines
+# Format: racine | mot1 | mot2 | mot3
+# Exemple:
+# كتب | كتاب | كاتب | مكتوب
