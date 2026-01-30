@@ -1,0 +1,316 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <cctype>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include "AVL.h"
+#include "TableSchemes.h"
+#include "Morphologie.h"
+using namespace std;
+
+void charger_racines(const string& fichier, AVL& arbre){
+    ifstream f(fichier);
+    string ligne;
+    while(getline(f,ligne))
+        if(!ligne.empty()) arbre.racine=arbre.inserer(arbre.racine,ligne);
+}
+
+void menu(){
+    cout<<"\n=== Moteur Morphologique Arabe ===\n";
+    cout<<"1. Afficher racines\n2. Ajouter racine\n3. Générer dérivés d'une racine\n4. Vérifier un mot\n5. Quitter\n";
+}
+
+string read_file(const string& path){
+    ifstream f(path, ios::binary);
+    if(!f) return "";
+    ostringstream ss;
+    ss<<f.rdbuf();
+    return ss.str();
+}
+
+string url_decode(const string& value){
+    string result;
+    result.reserve(value.size());
+    for(size_t i=0;i<value.size();i++){
+        if(value[i]=='%' && i+2<value.size()){
+            char hex[3]={value[i+1], value[i+2], '\0'};
+            result.push_back(static_cast<char>(strtol(hex,nullptr,16)));
+            i+=2;
+        } else if(value[i]=='+'){
+            result.push_back(' ');
+        } else {
+            result.push_back(value[i]);
+        }
+    }
+    return result;
+}
+
+string json_escape(const string& value){
+    string out;
+    out.reserve(value.size());
+    for(char c: value){
+        switch(c){
+            case '"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default: out.push_back(c); break;
+        }
+    }
+    return out;
+}
+
+string json_array(const vector<string>& items){
+    ostringstream ss;
+    ss << "[";
+    for(size_t i=0;i<items.size();i++){
+        if(i>0) ss << ",";
+        ss << "\"" << json_escape(items[i]) << "\"";
+    }
+    ss << "]";
+    return ss.str();
+}
+
+string get_query_param(const string& target, const string& key){
+    auto pos = target.find('?');
+    if(pos==string::npos) return "";
+    string query = target.substr(pos+1);
+    string pattern = key + "=";
+    size_t start = query.find(pattern);
+    if(start==string::npos) return "";
+    start += pattern.size();
+    size_t end = query.find('&', start);
+    string value = query.substr(start, end==string::npos ? string::npos : end-start);
+    return url_decode(value);
+}
+
+string content_type_for(const string& path){
+    if(path.rfind(".html")!=string::npos) return "text/html; charset=utf-8";
+    if(path.rfind(".css")!=string::npos) return "text/css; charset=utf-8";
+    if(path.rfind(".js")!=string::npos) return "application/javascript; charset=utf-8";
+    if(path.rfind(".json")!=string::npos) return "application/json; charset=utf-8";
+    return "text/plain; charset=utf-8";
+}
+
+void send_response(int client_fd, const string& status, const string& content_type, const string& body){
+    ostringstream ss;
+    ss << "HTTP/1.1 " << status << "\r\n";
+    ss << "Content-Type: " << content_type << "\r\n";
+    ss << "Access-Control-Allow-Origin: *\r\n";
+    ss << "Content-Length: " << body.size() << "\r\n";
+    ss << "Connection: close\r\n\r\n";
+    ss << body;
+    string response = ss.str();
+    send(client_fd, response.c_str(), response.size(), 0);
+}
+
+void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
+    string request;
+    char buffer[4096];
+    ssize_t bytes;
+    while((bytes = recv(client_fd, buffer, sizeof(buffer), 0)) > 0){
+        request.append(buffer, buffer + bytes);
+        if(request.find("\r\n\r\n") != string::npos) break;
+    }
+
+    if(request.empty()){
+        close(client_fd);
+        return;
+    }
+
+    size_t line_end = request.find("\r\n");
+    string request_line = request.substr(0, line_end);
+    istringstream iss(request_line);
+    string method, target, version;
+    iss >> method >> target >> version;
+
+    if(method == "OPTIONS"){
+        send_response(client_fd, "204 No Content", "text/plain", "");
+        close(client_fd);
+        return;
+    }
+
+    if(target.find("..") != string::npos){
+        send_response(client_fd, "400 Bad Request", "text/plain; charset=utf-8", "Bad request");
+        close(client_fd);
+        return;
+    }
+
+    if(target.rfind("/api/analyze", 0) == 0){
+        string word = get_query_param(target, "word");
+        if(word.empty()){
+            send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"word is required\"}");
+            close(client_fd);
+            return;
+        }
+        auto res = verifier_mot(word, arbre, table);
+        bool valid = !res.first.empty();
+        ostringstream body;
+        body << "{\"word\":\"" << json_escape(word) << "\",";
+        body << "\"root\":\"" << json_escape(res.first) << "\",";
+        body << "\"scheme\":\"" << json_escape(res.second) << "\",";
+        body << "\"valid\":" << (valid ? "true" : "false") << "}";
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", body.str());
+        close(client_fd);
+        return;
+    }
+
+    if(target.rfind("/api/roots", 0) == 0){
+        vector<string> racines;
+        arbre.extraire_racines(arbre.racine, racines);
+        string body = string("{\"roots\":") + json_array(racines) + "}";
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", body);
+        close(client_fd);
+        return;
+    }
+
+    if(target.rfind("/api/add-root", 0) == 0){
+        string root = get_query_param(target, "root");
+        if(root.empty()){
+            send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"root is required\"}");
+            close(client_fd);
+            return;
+        }
+        if(!arbre.rechercher(arbre.racine, root)){
+            arbre.racine = arbre.inserer(arbre.racine, root);
+            ofstream f("data/racines.txt", ios::app);
+            f << root << "\n";
+        }
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", "{\"status\":\"ok\"}");
+        close(client_fd);
+        return;
+    }
+
+    if(target.rfind("/api/derives", 0) == 0){
+        string root = get_query_param(target, "root");
+        if(root.empty()){
+            send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"root is required\"}");
+            close(client_fd);
+            return;
+        }
+        NoeudAVL* n = arbre.rechercher(arbre.racine, root);
+        if(!n){
+            send_response(client_fd, "200 OK", "application/json; charset=utf-8", "{\"valid\":false,\"derives\":[]}");
+            close(client_fd);
+            return;
+        }
+        auto derives = generer_derives(n, table);
+        ostringstream ss;
+        ss << "{\"valid\":true,\"derives\":[";
+        for(size_t i=0;i<derives.size();i++){
+            if(i>0) ss << ",";
+            ss << "{\"scheme\":\"" << json_escape(derives[i].first) << "\",";
+            ss << "\"word\":\"" << json_escape(derives[i].second) << "\"}";
+        }
+        ss << "]}";
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", ss.str());
+        close(client_fd);
+        return;
+    }
+
+    string path = target == "/" ? "/index.html" : target;
+    string file_path = "web" + path;
+    string body = read_file(file_path);
+    if(body.empty()){
+        send_response(client_fd, "404 Not Found", "text/plain; charset=utf-8", "Not found");
+        close(client_fd);
+        return;
+    }
+    send_response(client_fd, "200 OK", content_type_for(file_path), body);
+    close(client_fd);
+}
+
+void run_server(int port, AVL& arbre, TableSchemes& table){
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if(server_fd < 0){
+        cerr << "Erreur socket" << endl;
+        return;
+    }
+
+    int opt = 1;
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+
+    if(bind(server_fd, (sockaddr*)&addr, sizeof(addr)) < 0){
+        cerr << "Erreur bind (port " << port << ")" << endl;
+        close(server_fd);
+        return;
+    }
+
+    if(listen(server_fd, 10) < 0){
+        cerr << "Erreur listen" << endl;
+        close(server_fd);
+        return;
+    }
+
+    cout << "Serveur démarré sur http://localhost:" << port << endl;
+    while(true){
+        sockaddr_in client{};
+        socklen_t client_len = sizeof(client);
+        int client_fd = accept(server_fd, (sockaddr*)&client, &client_len);
+        if(client_fd < 0) continue;
+        handle_client(client_fd, arbre, table);
+    }
+}
+
+int main(int argc, char** argv){
+    // Initialiser mot_to_racine_scheme pour irréguliers
+    for(auto& [rac, formes]: verbes_irreguliers)
+        for(auto& [sch, mot]: formes)
+            mot_to_racine_scheme[simplifier(mot)]={rac,sch};
+
+    AVL arbre;
+    TableSchemes table;
+    charger_racines("data/racines.txt",arbre);
+
+    bool server_mode = false;
+    int port = 8080;
+    for(int i=1;i<argc;i++){
+        string arg = argv[i];
+        if(arg == "--server") server_mode = true;
+        else if(arg == "--port" && i+1 < argc) port = stoi(argv[++i]);
+    }
+
+    if(server_mode){
+        run_server(port, arbre, table);
+        return 0;
+    }
+
+    while(true){
+        menu();
+        string choix; cin>>choix;
+        if(choix=="1") arbre.afficher(arbre.racine);
+        else if(choix=="2"){
+            cout<<"Nouvelle racine : ";
+            string r; cin>>r;
+            arbre.racine=arbre.inserer(arbre.racine,r);
+            ofstream f("data/racines.txt",ios::app); f<<r<<"\n";
+        }
+        else if(choix=="3"){
+            cout<<"Racine : "; string r; cin>>r;
+            NoeudAVL* n=arbre.rechercher(arbre.racine,r);
+            if(n){
+                auto derives=generer_derives(n,table);
+                for(auto& p: derives) cout<<p.first<<" -> "<<p.second<<"\n";
+            } else cout<<"Racine non trouvée\n";
+        }
+        else if(choix=="4"){
+            cout<<"Mot : "; string m; cin>>m;
+            auto res=verifier_mot(m,arbre,table);
+            if(!res.first.empty()) cout<<"Mot '"<<m<<"' appartient à la racine '"<<res.first<<"' et au schème '"<<res.second<<"'\n";
+            else cout<<"Mot '"<<m<<"' n'appartient à aucune racine connue\n";
+        }
+        else if(choix=="5") break;
+        else cout<<"Choix invalide\n";
+    }
+}

@@ -1,0 +1,5 @@
+# Fichier de test pour l'analyse des mots
+# Format: mot | racine attendue | poids attendu
+# Exemple:
+# كتاب | كتب | فعال
+# درس | درس | فعل
