@@ -19,20 +19,30 @@
         </section>
 
         <section class="card">
-            <h2>إدارة الجذور</h2>
+            <h2>📚 إدارة الجذور</h2>
             <div class="input-section">
                 <input type="text" id="rootInput" placeholder="أدخل جذر ثلاثي">
-                <button onclick="addRoot()">إضافة الجذر</button>
-                <button class="secondary" onclick="loadRoots()">عرض الجذور</button>
+                <button onclick="addRoot()">➕ إضافة الجذر</button>
+                <button class="secondary" onclick="loadRoots()">📋 عرض الجذور</button>
             </div>
             <div id="rootsList" class="results"></div>
         </section>
 
         <section class="card">
-            <h2>توليد المشتقات</h2>
+            <h2>📐 إدارة الأوزان (الشِّيَم)</h2>
+            <div class="input-section">
+                <input type="text" id="schemeInput" placeholder="أدخل الوزن (مثل: فاعل)">
+                <button onclick="addScheme()">➕ إضافة الوزن</button>
+                <button class="secondary" onclick="loadSchemes()">📋 عرض الأوزان</button>
+            </div>
+            <div id="schemesList" class="results"></div>
+        </section>
+
+        <section class="card">
+            <h2>🔄 توليد المشتقات</h2>
             <div class="input-section">
                 <input type="text" id="deriveRootInput" placeholder="أدخل الجذر">
-                <button onclick="generateDerives()">توليد</button>
+                <button onclick="generateDerives()">⚡ توليد المشتقات</button>
             </div>
             <div id="derivesList" class="results"></div>
         </section>

@@ -67,3 +67,16 @@ void AVL::afficher(NoeudAVL* node,int niveau){
     cout<<"-> "<<node->racine<<endl;
     afficher(node->gauche,niveau+1);
 }
+
+void AVL::incrementer_frequence(NoeudAVL* node, const string& mot_derive) {
+    if(!node) return;
+    node->frequences[mot_derive]++;
+}
+
+int AVL::obtenir_frequence(NoeudAVL* node, const string& mot_derive) {
+    if(!node) return 0;
+    if(node->frequences.count(mot_derive)) {
+        return node->frequences[mot_derive];
+    }
+    return 0;
+}

@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <cctype>
+#include <clocale>
+#include <locale>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -20,11 +22,73 @@ void charger_racines(const string& fichier, AVL& arbre){
         if(!ligne.empty()) arbre.racine=arbre.inserer(arbre.racine,ligne);
 }
 
-void menu(){
-    cout<<"\n=== Moteur Morphologique Arabe ===\n";
-    cout<<"1. Afficher racines\n2. Ajouter racine\n3. Générer dérivés d'une racine\n4. Vérifier un mot\n5. Quitter\n";
+const string C_RESET = "\033[0m";
+const string C_BOLD = "\033[1m";
+const string C_DIM = "\033[2m";
+const string C_BLUE = "\033[34m";
+const string C_GREEN = "\033[32m";
+const string C_YELLOW = "\033[33m";
+const string C_RED = "\033[31m";
+const string C_CYAN = "\033[36m";
+
+bool USE_ARABIC = false;
+
+string txt(const string& fr, const string& ar){
+    return USE_ARABIC ? ar : fr;
 }
 
+void print_rule(){
+    cout << C_DIM << "════════════════════════════════════════" << C_RESET << "\n";
+}
+
+void menu(){
+    cout << "\n";
+    print_rule();
+    cout << C_BOLD << C_CYAN << txt("Moteur Morphologique Arabe", "محرك التحليل الصرفي العربي") << C_RESET << "\n";
+    print_rule();
+    cout << C_BLUE << "[1]" << C_RESET << " " << txt("📚 Gestion des racines", "📚 إدارة الجذور") << "\n";
+    cout << C_BLUE << "[2]" << C_RESET << " " << txt("📐 Gestion des schèmes", "📐 إدارة الأوزان") << "\n";
+    cout << C_BLUE << "[3]" << C_RESET << " " << txt("🔄 Générer dérivés d'une racine", "🔄 توليد مشتقات جذر") << "\n";
+    cout << C_BLUE << "[4]" << C_RESET << " " << txt("✔️  Vérifier un mot", "✔️  التحقق من كلمة") << "\n";
+    cout << C_BLUE << "[5]" << C_RESET << " " << txt("❌ Quitter", "❌ خروج") << "\n";
+    print_rule();
+    cout << C_YELLOW << txt("Choix", "الاختيار") << C_RESET << " : ";
+}
+void menu_racines(){
+    cout << "\n";
+    print_rule();
+    cout << C_BOLD << C_CYAN << txt("Gestion des racines", "إدارة الجذور") << C_RESET << "\n";
+    print_rule();
+    cout << C_BLUE << "[1]" << C_RESET << " " << txt("📋 Afficher les racines", "📋 عرض الجذور") << "\n";
+    cout << C_BLUE << "[2]" << C_RESET << " " << txt("➕ Ajouter une racine", "➕ إضافة جذر") << "\n";
+    cout << C_BLUE << "[0]" << C_RESET << " " << txt("⏎ Retour", "⏎ رجوع") << "\n";
+    print_rule();
+    cout << C_YELLOW << txt("Choix", "الاختيار") << C_RESET << " : ";
+}
+
+void menu_schemes(){
+    cout << "\n";
+    print_rule();
+    cout << C_BOLD << C_CYAN << txt("Gestion des schèmes", "إدارة الأوزان") << C_RESET << "\n";
+    print_rule();
+    cout << C_BLUE << "[1]" << C_RESET << " " << txt("📋 Afficher les schèmes", "📋 عرض الأوزان") << "\n";
+    cout << C_BLUE << "[2]" << C_RESET << " " << txt("➕ Ajouter un schème", "➕ إضافة وزن") << "\n";
+    cout << C_BLUE << "[0]" << C_RESET << " " << txt("⏎ Retour", "⏎ رجوع") << "\n";
+    print_rule();
+    cout << C_YELLOW << txt("Choix", "الاختيار") << C_RESET << " : ";
+}
+
+void menu_derives(){
+    cout << "\n";
+    print_rule();
+    cout << C_BOLD << C_CYAN << "Gestion des dérivés" << C_RESET << "\n";
+    print_rule();
+    cout << C_BLUE << "[1]" << C_RESET << " 📋 Afficher tous les dérivés\n";
+    cout << C_BLUE << "[2]" << C_RESET << " ➕ Ajouter un dérivé\n";
+    cout << C_BLUE << "[0]" << C_RESET << " ⏎ Retour\n";
+    print_rule();
+    cout << C_YELLOW << "Choix" << C_RESET << " : ";
+}
 string read_file(const string& path){
     ifstream f(path, ios::binary);
     if(!f) return "";
@@ -187,6 +251,29 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
         return;
     }
 
+    if(target.rfind("/api/schemes", 0) == 0){
+        vector<string> schemes = table.lister();
+        string body = string("{\"schemes\":") + json_array(schemes) + "}";
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", body);
+        close(client_fd);
+        return;
+    }
+
+    if(target.rfind("/api/add-scheme", 0) == 0){
+        string scheme = get_query_param(target, "scheme");
+        if(scheme.empty()){
+            send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"scheme is required\"}");
+            close(client_fd);
+            return;
+        }
+        table.ajouter(scheme, "فعل");
+        ofstream f("data/schemes.txt", ios::app);
+        f << scheme << "\n";
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", "{\"status\":\"ok\"}");
+        close(client_fd);
+        return;
+    }
+
     if(target.rfind("/api/derives", 0) == 0){
         string root = get_query_param(target, "root");
         if(root.empty()){
@@ -253,7 +340,7 @@ void run_server(int port, AVL& arbre, TableSchemes& table){
         return;
     }
 
-    cout << "Serveur démarré sur http://localhost:" << port << endl;
+    cout << C_GREEN << "Serveur démarré" << C_RESET << " sur http://localhost:" << port << "\n";
     while(true){
         sockaddr_in client{};
         socklen_t client_len = sizeof(client);
@@ -264,6 +351,13 @@ void run_server(int port, AVL& arbre, TableSchemes& table){
 }
 
 int main(int argc, char** argv){
+    setlocale(LC_ALL, "");
+    try {
+        std::locale::global(std::locale(""));
+    } catch (...) {
+        // Fallback si la locale système n'est pas disponible
+    }
+
     // Initialiser mot_to_racine_scheme pour irréguliers
     for(auto& [rac, formes]: verbes_irreguliers)
         for(auto& [sch, mot]: formes)
@@ -272,6 +366,9 @@ int main(int argc, char** argv){
     AVL arbre;
     TableSchemes table;
     charger_racines("data/racines.txt",arbre);
+    
+    // Construire l'index inversé pour optimiser verifier_mot() : O(n×k) → O(1)
+    construire_index(arbre, table);
 
     bool server_mode = false;
     int port = 8080;
@@ -279,6 +376,8 @@ int main(int argc, char** argv){
         string arg = argv[i];
         if(arg == "--server") server_mode = true;
         else if(arg == "--port" && i+1 < argc) port = stoi(argv[++i]);
+        else if(arg == "--ar" || arg == "--arabic") USE_ARABIC = true;
+        else if(arg == "--fr" || arg == "--french") USE_ARABIC = false;
     }
 
     if(server_mode){
@@ -286,31 +385,128 @@ int main(int argc, char** argv){
         return 0;
     }
 
+    if(argc == 1){
+        cout << C_CYAN << "Sélectionnez la langue / اختر اللغة" << C_RESET << "\n";
+        cout << "[1] Français\n";
+        cout << "[2] العربية\n";
+        cout << C_YELLOW << "Choix / الاختيار" << C_RESET << " : ";
+        string choix_lang; cin >> choix_lang;
+        USE_ARABIC = (choix_lang == "2");
+    }
+
     while(true){
         menu();
         string choix; cin>>choix;
-        if(choix=="1") arbre.afficher(arbre.racine);
+        if(choix=="1"){
+            while(true){
+                menu_racines();
+                string sous; cin>>sous;
+                if(sous=="1"){
+                    vector<string> racines;
+                    arbre.extraire_racines(arbre.racine, racines);
+                    cout << C_CYAN << "\n📚 Racines disponibles (" << racines.size() << ")" << C_RESET << "\n";
+                    print_rule();
+                    if(racines.empty()){
+                        cout << C_DIM << "Aucune racine" << C_RESET << "\n";
+                    } else {
+                        for(size_t i=0; i<racines.size(); i++){
+                            cout << "  " << (i+1) << ". " << racines[i] << "\n";
+                        }
+                    }
+                    print_rule();
+                }
+                else if(sous=="2"){
+                    cout << C_YELLOW << "Nouvelle racine" << C_RESET << " : ";
+                    string r; cin>>r;
+                    if(!arbre.rechercher(arbre.racine, r)){
+                        arbre.racine=arbre.inserer(arbre.racine,r);
+                        ofstream f("data/racines.txt",ios::app); f<<r<<"\n";
+                        cout << C_GREEN << "✅ Racine ajoutée" << C_RESET << "\n";
+                    } else {
+                        cout << C_DIM << "Racine déjà existante" << C_RESET << "\n";
+                    }
+                }
+                else if(sous=="0"){
+                    break;
+                }
+                else {
+                    cout << C_RED << "❌ Choix invalide" << C_RESET << "\n";
+                }
+            }
+        }
         else if(choix=="2"){
-            cout<<"Nouvelle racine : ";
-            string r; cin>>r;
-            arbre.racine=arbre.inserer(arbre.racine,r);
-            ofstream f("data/racines.txt",ios::app); f<<r<<"\n";
+            while(true){
+                menu_schemes();
+                string sous; cin>>sous;
+                if(sous=="1"){
+                    vector<string> schemes = table.lister();
+                    cout << C_CYAN << "\n📐 Schèmes disponibles (" << schemes.size() << ")" << C_RESET << "\n";
+                    print_rule();
+                    if(schemes.empty()){
+                        cout << C_DIM << "Aucun schème" << C_RESET << "\n";
+                    } else {
+                        for(size_t i=0; i<schemes.size(); i++){
+                            cout << "  " << (i+1) << ". " << schemes[i] << "\n";
+                        }
+                    }
+                    print_rule();
+                }
+                else if(sous=="2"){
+                    cout << C_YELLOW << "Nouveau schème" << C_RESET << " : ";
+                    string sch; cin>>sch;
+                    if(!table.contient(sch)){
+                        table.ajouter(sch, "فعل");
+                        ofstream f("data/schemes.txt",ios::app); f<<sch<<"\n";
+                        cout << C_GREEN << "✅ Schème ajouté" << C_RESET << "\n";
+                    } else {
+                        cout << C_DIM << "Schème déjà existant" << C_RESET << "\n";
+                    }
+                }
+                else if(sous=="0"){
+                    break;
+                }
+                else {
+                    cout << C_RED << "❌ Choix invalide" << C_RESET << "\n";
+                }
+            }
         }
         else if(choix=="3"){
-            cout<<"Racine : "; string r; cin>>r;
+            cout << C_YELLOW << "Racine" << C_RESET << " : ";
+            string r; cin>>r;
             NoeudAVL* n=arbre.rechercher(arbre.racine,r);
             if(n){
                 auto derives=generer_derives(n,table);
-                for(auto& p: derives) cout<<p.first<<" -> "<<p.second<<"\n";
-            } else cout<<"Racine non trouvée\n";
+                cout << C_CYAN << "\n📊 Dérivés de la racine: " << r << C_RESET << "\n";
+                print_rule();
+                for(auto& p: derives) cout << "  " << p.first << " → " << p.second << "\n";
+                print_rule();
+            } else {
+                cout << C_RED << "❌ Racine non trouvée" << C_RESET << "\n";
+            }
         }
         else if(choix=="4"){
-            cout<<"Mot : "; string m; cin>>m;
+            cout << C_YELLOW << "Mot" << C_RESET << " : ";
+            string m; cin>>m;
             auto res=verifier_mot(m,arbre,table);
-            if(!res.first.empty()) cout<<"Mot '"<<m<<"' appartient à la racine '"<<res.first<<"' et au schème '"<<res.second<<"'\n";
-            else cout<<"Mot '"<<m<<"' n'appartient à aucune racine connue\n";
+            if(!res.first.empty()) {
+                cout << C_GREEN << "\n✅ Mot valide" << C_RESET << "\n";
+                print_rule();
+                cout << "Mot    : " << m << "\n";
+                cout << "Racine : " << res.first << "\n";
+                cout << "Schème : " << res.second << "\n";
+                print_rule();
+            }
+            else {
+                cout << C_RED << "❌ Mot introuvable" << C_RESET << "\n";
+                cout << C_DIM << "Aucune racine connue ne correspond." << C_RESET << "\n";
+            }
         }
-        else if(choix=="5") break;
-        else cout<<"Choix invalide\n";
+        else if(choix=="5") {
+            cout << C_GREEN << "Au revoir !" << C_RESET << "\n";
+            break;
+        }
+        else {
+            cout << C_RED << "❌ Choix invalide" << C_RESET << "\n";
+        }
     }
 }
