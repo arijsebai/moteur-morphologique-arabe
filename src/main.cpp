@@ -6,14 +6,38 @@
 #include <cctype>
 #include <clocale>
 #include <locale>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <arpa/inet.h>
+#include <cstdlib>
+#ifdef _WIN32
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+#else
+    #include <netinet/in.h>
+    #include <sys/socket.h>
+    #include <unistd.h>
+    #include <arpa/inet.h>
+#endif
 #include "AVL.h"
 #include "TableSchemes.h"
 #include "Morphologie.h"
 using namespace std;
+
+#ifdef _WIN32
+using socket_t = SOCKET;
+static bool init_sockets(){
+    WSADATA wsa{};
+    return WSAStartup(MAKEWORD(2, 2), &wsa) == 0;
+}
+static void cleanup_sockets(){ WSACleanup(); }
+static void close_socket(socket_t s){ closesocket(s); }
+#else
+using socket_t = int;
+static bool init_sockets(){ return true; }
+static void cleanup_sockets(){}
+static void close_socket(socket_t s){ close(s); }
+#endif
 
 void charger_racines(const string& fichier, AVL& arbre){
     ifstream f(fichier);
@@ -162,7 +186,7 @@ string content_type_for(const string& path){
     return "text/plain; charset=utf-8";
 }
 
-void send_response(int client_fd, const string& status, const string& content_type, const string& body){
+void send_response(socket_t client_fd, const string& status, const string& content_type, const string& body){
     ostringstream ss;
     ss << "HTTP/1.1 " << status << "\r\n";
     ss << "Content-Type: " << content_type << "\r\n";
@@ -171,20 +195,20 @@ void send_response(int client_fd, const string& status, const string& content_ty
     ss << "Connection: close\r\n\r\n";
     ss << body;
     string response = ss.str();
-    send(client_fd, response.c_str(), response.size(), 0);
+    send(client_fd, response.c_str(), static_cast<int>(response.size()), 0);
 }
 
-void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
+void handle_client(socket_t client_fd, AVL& arbre, TableSchemes& table){
     string request;
     char buffer[4096];
-    ssize_t bytes;
+    int bytes;
     while((bytes = recv(client_fd, buffer, sizeof(buffer), 0)) > 0){
         request.append(buffer, buffer + bytes);
         if(request.find("\r\n\r\n") != string::npos) break;
     }
 
     if(request.empty()){
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
 
@@ -196,13 +220,13 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
 
     if(method == "OPTIONS"){
         send_response(client_fd, "204 No Content", "text/plain", "");
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
 
     if(target.find("..") != string::npos){
         send_response(client_fd, "400 Bad Request", "text/plain; charset=utf-8", "Bad request");
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
 
@@ -210,7 +234,7 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
         string word = get_query_param(target, "word");
         if(word.empty()){
             send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"word is required\"}");
-            close(client_fd);
+            close_socket(client_fd);
             return;
         }
         auto res = verifier_mot(word, arbre, table);
@@ -221,7 +245,7 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
         body << "\"scheme\":\"" << json_escape(res.second) << "\",";
         body << "\"valid\":" << (valid ? "true" : "false") << "}";
         send_response(client_fd, "200 OK", "application/json; charset=utf-8", body.str());
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
 
@@ -230,7 +254,7 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
         arbre.extraire_racines(arbre.racine, racines);
         string body = string("{\"roots\":") + json_array(racines) + "}";
         send_response(client_fd, "200 OK", "application/json; charset=utf-8", body);
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
 
@@ -238,7 +262,7 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
         string root = get_query_param(target, "root");
         if(root.empty()){
             send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"root is required\"}");
-            close(client_fd);
+            close_socket(client_fd);
             return;
         }
         if(!arbre.rechercher(arbre.racine, root)){
@@ -247,7 +271,7 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
             f << root << "\n";
         }
         send_response(client_fd, "200 OK", "application/json; charset=utf-8", "{\"status\":\"ok\"}");
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
 
@@ -255,7 +279,7 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
         vector<string> schemes = table.lister();
         string body = string("{\"schemes\":") + json_array(schemes) + "}";
         send_response(client_fd, "200 OK", "application/json; charset=utf-8", body);
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
 
@@ -263,14 +287,14 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
         string scheme = get_query_param(target, "scheme");
         if(scheme.empty()){
             send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"scheme is required\"}");
-            close(client_fd);
+            close_socket(client_fd);
             return;
         }
         table.ajouter(scheme, "فعل");
         ofstream f("data/schemes.txt", ios::app);
         f << scheme << "\n";
         send_response(client_fd, "200 OK", "application/json; charset=utf-8", "{\"status\":\"ok\"}");
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
 
@@ -278,13 +302,13 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
         string root = get_query_param(target, "root");
         if(root.empty()){
             send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"root is required\"}");
-            close(client_fd);
+            close_socket(client_fd);
             return;
         }
         NoeudAVL* n = arbre.rechercher(arbre.racine, root);
         if(!n){
             send_response(client_fd, "200 OK", "application/json; charset=utf-8", "{\"valid\":false,\"derives\":[]}");
-            close(client_fd);
+            close_socket(client_fd);
             return;
         }
         auto derives = generer_derives(n, table);
@@ -297,7 +321,7 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
         }
         ss << "]}";
         send_response(client_fd, "200 OK", "application/json; charset=utf-8", ss.str());
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
 
@@ -306,22 +330,32 @@ void handle_client(int client_fd, AVL& arbre, TableSchemes& table){
     string body = read_file(file_path);
     if(body.empty()){
         send_response(client_fd, "404 Not Found", "text/plain; charset=utf-8", "Not found");
-        close(client_fd);
+        close_socket(client_fd);
         return;
     }
     send_response(client_fd, "200 OK", content_type_for(file_path), body);
-    close(client_fd);
+    close_socket(client_fd);
 }
 
 void run_server(int port, AVL& arbre, TableSchemes& table){
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if(!init_sockets()){
+        cerr << "Erreur init sockets" << endl;
+        return;
+    }
+
+    socket_t server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if(server_fd < 0){
         cerr << "Erreur socket" << endl;
+        cleanup_sockets();
         return;
     }
 
     int opt = 1;
+#ifdef _WIN32
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&opt), sizeof(opt));
+#else
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+#endif
 
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
@@ -330,21 +364,27 @@ void run_server(int port, AVL& arbre, TableSchemes& table){
 
     if(bind(server_fd, (sockaddr*)&addr, sizeof(addr)) < 0){
         cerr << "Erreur bind (port " << port << ")" << endl;
-        close(server_fd);
+        close_socket(server_fd);
+        cleanup_sockets();
         return;
     }
 
     if(listen(server_fd, 10) < 0){
         cerr << "Erreur listen" << endl;
-        close(server_fd);
+        close_socket(server_fd);
+        cleanup_sockets();
         return;
     }
 
     cout << C_GREEN << "Serveur démarré" << C_RESET << " sur http://localhost:" << port << "\n";
     while(true){
         sockaddr_in client{};
+        #ifdef _WIN32
+        int client_len = sizeof(client);
+        #else
         socklen_t client_len = sizeof(client);
-        int client_fd = accept(server_fd, (sockaddr*)&client, &client_len);
+        #endif
+        socket_t client_fd = accept(server_fd, (sockaddr*)&client, &client_len);
         if(client_fd < 0) continue;
         handle_client(client_fd, arbre, table);
     }

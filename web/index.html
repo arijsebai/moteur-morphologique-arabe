@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,46 +7,198 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>محرك التحليل الصرفي العربي</h1>
-        <section class="card">
-            <h2>تحليل كلمة</h2>
-            <div class="input-section">
-                <input type="text" id="wordInput" placeholder="أدخل الكلمة العربية">
-                <button onclick="analyzeWord()">تحليل</button>
-            </div>
-            <div id="results" class="results"></div>
-        </section>
+    <div class="app-container">
+        <!-- Header fixe -->
+        <header class="app-header">
+            <h1 class="app-title">
+                <span class="emoji">🌙</span>
+                محرك التحليل الصرفي العربي
+                <span class="emoji">✨</span>
+            </h1>
+            <button id="homeBtn" class="home-btn" onclick="showHome()" style="display: none;">
+                🏠 القائمة الرئيسية
+            </button>
+        </header>
 
-        <section class="card">
-            <h2>📚 إدارة الجذور</h2>
-            <div class="input-section">
-                <input type="text" id="rootInput" placeholder="أدخل جذر ثلاثي">
-                <button onclick="addRoot()">➕ إضافة الجذر</button>
-                <button class="secondary" onclick="loadRoots()">📋 عرض الجذور</button>
+        <!-- Page d'accueil - Menu principal -->
+        <div id="homePage" class="page active">
+            <div class="welcome-section">
+                <h2 class="welcome-title">مرحباً بك 👋</h2>
+                <p class="welcome-text">اختر الوظيفة التي تريد استخدامها</p>
             </div>
-            <div id="rootsList" class="results"></div>
-        </section>
+            
+            <div class="menu-grid">
+                <div class="menu-card" onclick="showPage('analyzePage')">
+                    <div class="card-icon">🔍</div>
+                    <h3>تحليل كلمة</h3>
+                    <p>اكتشف جذر ووزن أي كلمة عربية</p>
+                    <div class="card-arrow">←</div>
+                </div>
 
-        <section class="card">
-            <h2>📐 إدارة الأوزان (الشِّيَم)</h2>
-            <div class="input-section">
-                <input type="text" id="schemeInput" placeholder="أدخل الوزن (مثل: فاعل)">
-                <button onclick="addScheme()">➕ إضافة الوزن</button>
-                <button class="secondary" onclick="loadSchemes()">📋 عرض الأوزان</button>
-            </div>
-            <div id="schemesList" class="results"></div>
-        </section>
+                <div class="menu-card" onclick="showPage('rootsPage')">
+                    <div class="card-icon">📚</div>
+                    <h3>إدارة الجذور</h3>
+                    <p>عرض وإضافة الجذور الثلاثية</p>
+                    <div class="card-arrow">←</div>
+                </div>
 
-        <section class="card">
-            <h2>🔄 توليد المشتقات</h2>
-            <div class="input-section">
-                <input type="text" id="deriveRootInput" placeholder="أدخل الجذر">
-                <button onclick="generateDerives()">⚡ توليد المشتقات</button>
+                <div class="menu-card" onclick="showPage('schemesPage')">
+                    <div class="card-icon">📐</div>
+                    <h3>إدارة الأوزان</h3>
+                    <p>إدارة الأوزان الصرفية (الشِّيَم)</p>
+                    <div class="card-arrow">←</div>
+                </div>
+
+                <div class="menu-card" onclick="showPage('derivesPage')">
+                    <div class="card-icon">🔄</div>
+                    <h3>توليد المشتقات</h3>
+                    <p>استخراج جميع مشتقات جذر معين</p>
+                    <div class="card-arrow">←</div>
+                </div>
+
+                <div class="menu-card" onclick="showPage('verifyPage')">
+                    <div class="card-icon">✅</div>
+                    <h3>التحقق من المشتق</h3>
+                    <p>تحقق إذا كانت الكلمة مشتقة من جذر</p>
+                    <div class="card-arrow">←</div>
+                </div>
             </div>
-            <div id="derivesList" class="results"></div>
-        </section>
+        </div>
+
+        <!-- Page: تحليل كلمة -->
+        <div id="analyzePage" class="page">
+            <div class="page-content">
+                <div class="page-header">
+                    <h2>🔍 تحليل كلمة</h2>
+                    <p class="page-desc">أدخل كلمة عربية لمعرفة جذرها ووزنها</p>
+                </div>
+                
+                <div class="input-container">
+                    <input type="text" id="wordInput" class="main-input" placeholder="اكتب الكلمة هنا..." autofocus>
+                    <button class="action-btn" onclick="analyzeWord()">
+                        <span>تحليل</span>
+                        <span class="btn-icon">🔎</span>
+                    </button>
+                </div>
+                
+                <div id="analyzeResults" class="results-container"></div>
+            </div>
+        </div>
+
+        <!-- Page: إدارة الجذور -->
+        <div id="rootsPage" class="page">
+            <div class="page-content">
+                <div class="page-header">
+                    <h2>📚 إدارة الجذور</h2>
+                    <p class="page-desc">عرض وإضافة الجذور الثلاثية</p>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('viewRoots')">📋 عرض الجذور</button>
+                    <button class="tab" onclick="switchTab('addRoot')">➕ إضافة جذر</button>
+                </div>
+
+                <div id="viewRoots" class="tab-content active">
+                    <button class="action-btn" onclick="loadRoots()">
+                        <span>تحميل الجذور</span>
+                        <span class="btn-icon">🔄</span>
+                    </button>
+                    <div id="rootsList" class="results-container"></div>
+                </div>
+
+                <div id="addRoot" class="tab-content">
+                    <div class="input-container">
+                        <input type="text" id="rootInput" class="main-input" placeholder="أدخل جذر ثلاثي (مثل: كتب)">
+                        <button class="action-btn" onclick="addRoot()">
+                            <span>إضافة</span>
+                            <span class="btn-icon">✨</span>
+                        </button>
+                    </div>
+                    <div id="addRootResult" class="results-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: إدارة الأوزان -->
+        <div id="schemesPage" class="page">
+            <div class="page-content">
+                <div class="page-header">
+                    <h2>📐 إدارة الأوزان</h2>
+                    <p class="page-desc">إدارة الأوزان الصرفية (مثل: فاعل، مفعول)</p>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('viewSchemes')">📋 عرض الأوزان</button>
+                    <button class="tab" onclick="switchTab('addScheme')">➕ إضافة وزن</button>
+                </div>
+
+                <div id="viewSchemes" class="tab-content active">
+                    <button class="action-btn" onclick="loadSchemes()">
+                        <span>تحميل الأوزان</span>
+                        <span class="btn-icon">🔄</span>
+                    </button>
+                    <div id="schemesList" class="results-container"></div>
+                </div>
+
+                <div id="addScheme" class="tab-content">
+                    <div class="input-container">
+                        <input type="text" id="schemeInput" class="main-input" placeholder="أدخل وزن (مثل: فاعل)">
+                        <button class="action-btn" onclick="addScheme()">
+                            <span>إضافة</span>
+                            <span class="btn-icon">✨</span>
+                        </button>
+                    </div>
+                    <div id="addSchemeResult" class="results-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: توليد المشتقات -->
+        <div id="derivesPage" class="page">
+            <div class="page-content">
+                <div class="page-header">
+                    <h2>🔄 توليد المشتقات</h2>
+                    <p class="page-desc">أدخل جذراً لتوليد جميع مشتقاته</p>
+                </div>
+                
+                <div class="input-container">
+                    <input type="text" id="deriveRootInput" class="main-input" placeholder="أدخل الجذر (مثل: كتب)">
+                    <button class="action-btn" onclick="generateDerives()">
+                        <span>توليد المشتقات</span>
+                        <span class="btn-icon">⚡</span>
+                    </button>
+                </div>
+                
+                <div id="derivesList" class="results-container"></div>
+            </div>
+        </div>
+
+        <!-- Page: التحقق من المشتق -->
+        <div id="verifyPage" class="page">
+            <div class="page-content">
+                <div class="page-header">
+                    <h2>✅ التحقق من المشتق</h2>
+                    <p class="page-desc">تحقق إذا كانت الكلمة مشتقة من جذر معين</p>
+                </div>
+                
+                <div class="input-container">
+                    <input type="text" id="verifyWordInput" class="main-input" placeholder="أدخل الكلمة للتحقق...">
+                    <button class="action-btn" onclick="verifyDerivation()">
+                        <span>تحقق</span>
+                        <span class="btn-icon">🔍</span>
+                    </button>
+                </div>
+                
+                <div id="verifyResults" class="results-container"></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>صُنع بحب 💚 • Made with Love</p>
+        </footer>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
