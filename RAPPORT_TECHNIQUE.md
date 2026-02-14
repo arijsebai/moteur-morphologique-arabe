@@ -5,7 +5,6 @@
 **Année** : 2025-2026  
 **Responsables** : Narjes Ben Hariz, Sahbi Bahroun  
 **Réalisatrices** : Arij Sebai, Hadil Hasni, Balkis Hanafi (1ING3)
-**Langage** : C++17
 
 ---
 
