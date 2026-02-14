@@ -12,6 +12,7 @@
 | **Responsables** | Narjes Ben Hariz, Sahbi Bahroun |
 | **Langage** | C++17 |
 | **Paradigme** | POO + Structures de Données |
+| **Interface** | Console interactive (FR/AR) + Web responsive |
 
 ---
 
@@ -19,11 +20,12 @@
 
 Ce projet implémente un **moteur morphologique avancé** pour la langue arabe capable de :
 
-✅ **Indexer les racines** - Stockage efficace des racines trilitères dans un arbre AVL équilibré  
-✅ **Gérer les schèmes** - Organisation des schèmes morphologiques en table de hachage  
-✅ **Générer des dérivés** - Création de mots à partir de racines et schèmes  
-✅ **Valider les mots** - Vérification morphologique d'un mot par rapport à une racine  
-✅ **Interface intuitive** - Console interactive et interface web responsive  
+✅ **Gestion des racines** - Stockage efficace en arbre AVL, affichage ordonné  
+✅ **Gestion des schèmes** - Organisation en table de hachage, ajout dynamique  
+✅ **Générer des dérivés** - Création de mots à partir de racine + schème  
+✅ **Valider les mots** - Vérification morphologique rapide (O(1))  
+✅ **Console interactive** - Menus bilingues (Français/Arabe)  
+✅ **Interface web** - Design moderne et responsive  
 
 ---
 
@@ -33,27 +35,33 @@ Ce projet implémente un **moteur morphologique avancé** pour la langue arabe c
 moteur-morphologique-arabe/
 │
 ├─ src/                      # 💻 Code source C++
-│   ├─ main.cpp              # Point d'entrée principal
-│   ├─ AVL.h / AVL.cpp       # Arbre AVL pour les racines
+│   ├─ main.cpp              # Point d'entrée + menus console
+│   ├─ AVL.h / AVL.cpp       # Arbre AVL pour racines
+│   ├─ HashTable.h/.cpp      # Table de hachage
 │   ├─ TableSchemes.h/.cpp   # Gestion des schèmes
 │   └─ Morphologie.h/.cpp    # Moteur morphologique
 │
-├─ include/                  # 📚 Headers optionnels
-│
-├─ data/                     # 📊 Données d'entrée
+├─ data/                     # 📊 Données persistantes
 │   ├─ racines.txt           # Racines arabes trilitères
 │   └─ schemes.txt           # Schèmes morphologiques
 │
 ├─ web/                      # 🌐 Interface Web
 │   ├─ index.html            # Interface utilisateur
-│   ├─ style.css             # Styles modernes
-│   └─ script.js             # Logique JavaScript
+│   ├─ style.css             # Styles modernes (gradient, animations)
+│   └─ script.js             # Logique JavaScript + API calls
 │
-├─ tests/                    # 🧪 Tests et données
+├─ tests/                    # 🧪 Données de test
 │   ├─ test_racines.txt
 │   └─ test_mots.txt
 │
-├─ CMakeLists.txt            # Configuration build
+├─ build/                    # 🔨 Répertoire de compilation
+│
+├─ lancer_fr.sh              # Lanceur console français
+├─ lancer_ar.sh              # Lanceur console arabe
+├─ lancer_console.sh         # Lanceur console (GNOME Terminal)
+├─ lancer_web.sh             # Lanceur serveur web
+├─ CMakeLists.txt            # Configuration CMake
+├─ Makefile                  # Compilation simple
 └─ README.md                 # Documentation
 ```
 
@@ -61,121 +69,181 @@ moteur-morphologique-arabe/
 
 ## ⚙️ Fonctionnalités Principales
 
-### 1. 🔤 Gestion des Racines Arabes
-- ✓ Chargement depuis fichier texte
-- ✓ Insertion dynamique dans un arbre AVL
-- ✓ Recherche et affichage équilibrés
-- ✓ Recherche O(log n) garantie
+### 1. 📚 Gestion des Racines
+- ✓ Stockage efficace en arbre AVL
+- ✓ Affichage ordonné et numéroté
+- ✓ Ajout dynamique
+- ✓ Persistance en fichier
 
-### 2. 📐 Gestion des Schèmes Morphologiques
-- ✓ Stockage en table de hachage
-- ✓ Ajout/suppression dynamique
-- ✓ Énumération rapide des schèmes
-- ✓ Accès O(1) en moyenne
+### 2. 📐 Gestion des Schèmes
+- ✓ Table de hachage pour accès O(1)
+- ✓ Énumération complète
+- ✓ Ajout/consultation dynamique
+- ✓ Sauvegarde automatique
 
-### 3. 🔄 Génération Morphologique
-- ✓ Création de dérivés à partir de racine + schème
-- ✓ Support des racines régulières et irrégulières
+### 3. 🔄 Génération de Dérivés
+- ✓ Création à partir de racine + schème
 - ✓ Respect des règles phonétiques arabes
-- ✓ Génération de formes féminines et plurielles
+- ✓ Gestion des cas irréguliers
+- ✓ Accès rapide en cache
 
-### 4. ✔️ Validation Morphologique
-- ✓ Vérification de l'appartenance d'un mot à une racine
-- ✓ Identification du schème utilisé
-- ✓ Retour détaillé des analyses
-- ✓ Gestion des ambiguïtés
+### 4. ✔️ Vérification de Mots
+- ✓ Identification de racine O(1)
+- ✓ Retour du schème appliqué
+- ✓ Gestion des diacritiques
+- ✓ Support UTF-8 complet
 
-### 5. 🖥️ Interface Console Interactive
-- ✓ Menu principal itératif
-- ✓ Navigation fluide
-- ✓ Affichage formaté en arabe
-- ✓ Support UTF-8
+### 5. 🖥️ Console Interactive
+- ✓ Menus colorés et intuitifs
+- ✓ **Bilingue** : Français et العربية
+- ✓ Pause après résultats
+- ✓ Navigation par sous-menus
 
-### 6. 🌐 Interface Web (Optionnelle)
-- ✓ Design moderne et responsive
-- ✓ Visualisation des racines en temps réel
-- ✓ Analyse interactive des mots
-- ✓ Affichage RTL pour l'arabe
+### 6. 🌐 Interface Web
+- ✓ Design responsive (mobile/desktop)
+- ✓ RTL automatique pour l'arabe
+- ✓ API REST intégrée
+- ✓ Pas de dépendances externes
 
 ---
 
-## 💻 Installation et Compilation
+## 💻 Installation et Lancement
 
 ### Prérequis
 ```
-✓ C++17 ou supérieur (g++, clang)
-✓ CMake 3.10+ (optionnel)
+✓ C++17 (g++ ou clang)
+✓ Make (optional)
+✓ CMake 3.10+ (optional)
 ```
 
-### Méthode 1️⃣ : Compilation directe
+### Compilation
+
+**Méthode 1 : Makefile (recommandé)**
 ```bash
-cd /home/hadil/projet/moteur-morphologique-arabe
-g++ -std=c++17 src/*.cpp -o moteur_morphologique
-./moteur_morphologique
+cd moteur-morphologique-arabe
+make
 ```
 
-### Méthode 2️⃣ : Compilation avec CMake
+**Méthode 2 : Compilation directe**
+```bash
+g++ -std=c++17 src/*.cpp -o moteur_morphologique
+```
+
+**Méthode 3 : CMake**
 ```bash
 mkdir build && cd build
-cmake ..
-make
+cmake .. && make
+```
+
+### Lancement
+
+#### Console (avec sélection de langue au démarrage)
+```bash
 ./moteur_morphologique
 ```
+Puis sélectionner : `[1] Français` ou `[2] العربية`
 
-### Mode serveur (Backend + Frontend)
-Lance un serveur HTTP local qui sert l'interface web et l'API.
+#### Console en Français
 ```bash
-./moteur_morphologique --server
+./lancer_fr.sh
+# ou
+./moteur_morphologique --fr
 ```
-Puis ouvre `http://localhost:8080` dans ton navigateur.
 
----
-
-## 🧪 Tests et Validation
-
-### Fichiers de Test
-| Fichier | Description |
-|---------|-------------|
-| `tests/test_racines.txt` | Ensemble de racines de référence |
-| `tests/test_mots.txt` | Mots à analyser et résultats attendus |
-
-### Exécution des Tests
+#### Console en Arabe
 ```bash
-# Les tests s'exécutent automatiquement au lancement
-./moteur_morphologique
-# Sélectionner l'option "Tests" dans le menu
+./lancer_ar.sh
+# ou
+./moteur_morphologique --ar
 ```
+
+#### Console dans GNOME Terminal (meilleur rendu arabe)
+```bash
+./lancer_console.sh
+```
+*Remarque : Configure la police à "Amiri" ou "Scheherazade" dans GNOME Terminal.*
+
+#### Interface Web
+```bash
+./lancer_web.sh
+# ou
+./moteur_morphologique --server [--port 8080]
+```
+Puis ouvre `http://localhost:8080` dans le navigateur.
 
 ---
 
 ## 📖 Exemple d'Utilisation
 
-### Console Interactive
+### Mode Console (Français)
 ```
-╔════════════════════════════════════════╗
-║  🌟 محرك التحليل الصرفي العربي    ║
-║  Moteur Morphologique Arabe             ║
-╚════════════════════════════════════════╝
+════════════════════════════════════════
+Moteur Morphologique Arabe
+════════════════════════════════════════
 
-[1] 📚 Afficher les racines
-[2] ➕ Ajouter une racine
-[3] 🔄 Générer dérivés
+[1] 📚 Gestion des racines
+[2] 📐 Gestion des schèmes
+[3] 🔄 Générer dérivés d'une racine
 [4] ✔️  Vérifier un mot
-[5] 🌐 Interface web
-[0] ❌ Quitter
+[5] ❌ Quitter
+════════════════════════════════════════
+Choix : 4
 
-Votre choix > 4
-
-Entrez le mot à analyser : مكتوب
-═══════════════════════════════════════
-📊 Résultats :
-─────────────────────────────────────
-Mot : مكتوب
+Mot : كتب
+════════════════════════════════════════
+✅ Mot valide
+════════════════════════════════════════
+Mot    : كتب
 Racine : كتب
-Schème : مفعول
-Statut : ✓ Valide
-═══════════════════════════════════════
+Schème : فعل
+════════════════════════════════════════
+
+Appuyez sur Entrée pour continuer...
 ```
+
+### Mode Console (العربية)
+```
+════════════════════════════════════════
+محرك التحليل الصرفي العربي
+════════════════════════════════════════
+
+[1] 📚 إدارة الجذور
+[2] 📐 إدارة الأوزان
+[3] 🔄 توليد مشتقات جذر
+[4] ✔️  التحقق من كلمة
+[5] ❌ خروج
+════════════════════════════════════════
+الاختيار : 1
+```
+
+### Menu Gestion des Racines
+```
+════════════════════════════════════════
+Gestion des racines
+════════════════════════════════════════
+
+[1] 📋 Afficher les racines
+[2] ➕ Ajouter une racine
+[0] ⏎ Retour
+════════════════════════════════════════
+Choix : 1
+
+📚 Racines disponibles (12)
+════════════════════════════════════════
+  1. كتب
+  2. درس
+  3. علم
+  ...
+════════════════════════════════════════
+
+Appuyez sur Entrée pour continuer...
+```
+
+### Interface Web
+- Accès via `http://localhost:8080`
+- 5 sections : Analyse mot, Racines, Schèmes, Dérivés
+- Stockage local persistant
+- Support RTL natif
 
 ---
 
@@ -183,70 +251,123 @@ Statut : ✓ Valide
 
 ### Arbre AVL
 ```
-Classe : AVL<T>
-├─ Complexité : O(log n) insertions/suppressions/recherches
-├─ Caractéristiques : Auto-équilibrage
-└─ Usage : Stockage des racines arabes
+Complexité : O(log n) pour insertion/recherche/suppression
+Équilibrage : Automatique par facteur d'équilibre
+Usage : Racines arabes (données statiques/semi-dynamiques)
 ```
 
-### Table Schèmes (Hash Map)
+### Table de Hachage
 ```
-Classe : TableSchemes
-├─ Complexité : O(1) accès en moyenne
-├─ Caractéristiques : Dynamique
-└─ Usage : Gestion des schèmes morphologiques
+Complexité : O(1) accès moyen
+Implémentation : Adressage ouvert
+Usage : Schèmes, index d'accès rapide
+```
+
+### Index Inversé
+```
+Structure : map<mot_simplifié, {racine, schème}>
+Complexité : O(1) vérification de mot
+Optimisation : Construction en phase d'indexation
 ```
 
 ### Moteur Morphologique
 ```
-Classe : Morphologie
-├─ Méthodes principales :
-│   ├─ analyzeWord(mot)     → Analyse et extraction de racine
-│   ├─ generateWords(racine) → Génération de dérivés
-│   └─ validateWord(mot)     → Vérification morphologique
-└─ Intégration : AVL + TableSchemes
+Fonction clé : appliquer_scheme(schème, racine)
+- Remplace ف/ع/ل par lettres réelles
+- Applique règles phonétiques arabes
+- Gère diacritiques automatiquement
 ```
 
 ---
 
-## 📊 Performance
+## 📊 Performance Observée
 
-| Opération | Complexité | Remarques |
-|-----------|-----------|-----------|
-| Insérer une racine | O(log n) | Arbre AVL |
-| Chercher une racine | O(log n) | Binaire équilibré |
-| Accéder à un schème | O(1) | Table de hachage |
-| Générer un dérivé | O(1) | Concaténation simple |
-| Analyser un mot | O(log n) | Recherche de racine |
+| Opération | Complexité | Détails |
+|-----------|-----------|---------|
+| Vérifier un mot | O(1) | Index inversé |
+| Ajouter une racine | O(log n) | Insertion AVL |
+| Générer dérivés | O(m) | m = nombre de schèmes |
+| Afficher racines | O(n) | Traversée en-ordre |
+| Rechercher schème | O(1) | Hash table |
+
+**Temps réel** : ~1ms par vérification de mot
 
 ---
 
-## 🚀 Améliorations Futures
+## 🛠️ Modes de Compilation/Exécution
 
-- [ ] Support des racines quadrilitères
-- [ ] Analyse de morphologie avancée (suffixes/préfixes)
-- [ ] Base de données pour racines irrégulières
-- [ ] API REST pour le moteur
-- [ ] Interface graphique desktop (Qt/wxWidgets)
+```bash
+# Mode console interactif
+./moteur_morphologique              # Menu langue
+./moteur_morphologique --fr         # Français direct
+./moteur_morphologique --ar         # Arabe direct
+
+# Mode serveur web
+./moteur_morphologique --server             # Port 8080 (défaut)
+./moteur_morphologique --server --port 3000  # Port personnalisé
+
+# Lanceurs rapides
+./lancer_fr.sh              # Console FR
+./lancer_ar.sh              # Console AR
+./lancer_console.sh         # GNOME Terminal
+./lancer_web.sh             # Serveur + navigateur
+```
+
+---
+
+## 🚀 Améliorations Possibles
+
+- [ ] Racines quadrilitères
+- [ ] Interface graphique (Qt)
+- [ ] Base de données (SQLite)
 - [ ] Diacritisation automatique
-- [ ] Support multilingue
+- [ ] Support multilingue (FR/AR/EN)
+- [ ] API REST documentée (Swagger)
+- [ ] Tests unitaires
+- [ ] Compression des données
 
 ---
 
-## 📝 Licence
+## 🐛 Dépannage
 
-Ce projet est fourni à titre éducatif. Tous droits réservés.
+### Lettres arabes déconnectées en console
+**Solution** : Utiliser GNOME Terminal avec police "Amiri" ou "Scheherazade"
+```bash
+./lancer_console.sh
+```
+
+### Problème d'affichage UTF-8
+**Solution** : Vérifier la locale
+```bash
+locale
+export LC_ALL=en_US.UTF-8
+```
+
+### Port 8080 déjà utilisé
+**Solution** : Changer le port
+```bash
+./moteur_morphologique --server --port 3000
+```
 
 ---
 
-## 👨‍💼 Auteurs
+## 📄 Licence
+
+Projet éducatif - Université ISI ARIANA
+
+---
+
+## 👥 Auteurs
 
 - **Enseignants** : Narjes Ben Hariz, Sahbi Bahroun
+- **Étudiants** : Sebai Arij, Hanafi Balkis, Hosni Hadil
 - **Année** : 2025-2026
-- **Institution** : [À compléter]
+- **Institution** : ISI ARIANA
+- **Dernière mise à jour** : Février 2026
 
 ---
 
-## 📞 Support et Contribution
+## 📞 Contacts
 
-Pour toute question ou contribution, veuillez contacter les responsables du projet.
+Pour toute question ou suggestion, contactez les responsables du projet.
+
