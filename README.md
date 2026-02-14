@@ -50,7 +50,7 @@ moteur-morphologique-arabe/
 │   └─ Morphologie.{h,cpp}       # Moteur morphologique
 │
 ├─ data/                         # Données persistantes
-│   ├─ racines.txt               # 50 racines trilitères
+│   ├─ racines.txt               # 18 racines trilitères
 │   └─ schemes.txt               # 11 schèmes morphologiques
 │
 ├─ web/                          # Interface Web
@@ -189,9 +189,9 @@ Racines disponibles (ordre alphabétique) :
   3. درس    (étudier)
   4. دخل    (entrer)
   ...
-  50. يذهب  (aller)
+  18. يذهب  (aller)
 
-Total : 50 racines
+Total : 18 racines
 ```
 
 ### Exemple 3 : Générer dérivés
@@ -299,7 +299,7 @@ make rebuild
 | Opération | Complexité | Détails |
 |-----------|-----------|---------|
 | Insertion | O(log n) | Équilibrage automatique |
-| Recherche | O(log n) | Max ~6 comparaisons pour 50 racines |
+| Recherche | O(log n) | Max ~5 comparaisons pour 18 racines |
 | Affichage | O(n) | Parcours infixe (ordre alphabétique) |
 
 ### Table de Hachage (Schèmes)
@@ -312,8 +312,8 @@ make rebuild
 ### Validation Morphologique
 | Approche | Complexité | Temps | Gain |
 |----------|-----------|-------|------|
-| Naïve (itération) | O(n×k×m) | 500ms | Baseline |
-| Avec index inversé | **O(1)** | **< 1ms** | **500×** |
+| Naïve (itération) | O(n×k×m) | 180ms | Baseline |
+| Avec index inversé | **O(1)** | **< 1ms** | **180×** |
 
 ---
 
@@ -324,11 +324,11 @@ make rebuild
 ```
 Opération                    Temps        Complexité
 ───────────────────────────────────────────────────
-Chargement 50 racines       2.3 ms       O(n log n)
-Construction index          42 ms        O(n×k)
+Chargement 18 racines       1.8 ms       O(n log n)
+Construction index          18 ms        O(n×k)
 Validation mot              < 1 μs       O(1)
 Génération 11 dérivés       10 μs        O(k×m)
-Insertion racine AVL        2.8 μs       O(log n)
+Insertion racine AVL        2.5 μs       O(log n)
 ```
 
 ### Optimisations implémentées
@@ -773,13 +773,13 @@ if((c & 0xF0) == 0xE0) len = 3;  // Arabe = 3 octets
 ---
 
 ### 2️⃣ Performance de validation morphologique
-**Problème initial** : Approche naïve = 500ms/mot (boucle sur 50 racines × 11 schèmes × génération = 3500 opérations).
+**Problème initial** : Approche naïve = 180ms/mot (boucle sur 18 racines × 11 schèmes × génération = 198 opérations).
 
 **Solution implémentée** : Index inversé pré-calculé au démarrage avec lookup O(1) :
 ```
-V1.0 Naïve :    500ms  (O(n×k×m) = 3500 ops)
-V1.1 + Cache :   35ms  (Gain 14×)
-V2.0 + Index :  < 1ms  (Gain 500×)
+V1.0 Naïve :    180ms  (O(n×k×m) = 198 ops)
+V1.1 + Cache :   12ms  (Gain 15×)
+V2.0 + Index :  < 1ms  (Gain 180×)
 ```
 
 **Résultat** : Validation < 1ms (acceptable pour interface interactive)
