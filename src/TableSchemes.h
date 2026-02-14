@@ -14,5 +14,9 @@ public:
     void supprimer(const string& nom);
     bool contient(const string& nom);
     string obtenir(const string& nom);
+    string obtenir_regle(const string& nom);
     vector<string> lister();
+    vector<pair<string,string>> lister_detail();
+    bool charger_depuis_fichier(const string& path);
+    bool sauvegarder_vers_fichier(const string& path);
 };

@@ -7,6 +7,7 @@
 #include <clocale>
 #include <locale>
 #include <cstdlib>
+#include <algorithm>
 #ifdef _WIN32
     #ifndef NOMINMAX
     #define NOMINMAX
@@ -97,6 +98,8 @@ void menu_schemes(){
     print_rule();
     cout << C_BLUE << "[1]" << C_RESET << " " << txt("📋 Afficher les schèmes", "📋 عرض الأوزان") << "\n";
     cout << C_BLUE << "[2]" << C_RESET << " " << txt("➕ Ajouter un schème", "➕ إضافة وزن") << "\n";
+    cout << C_BLUE << "[3]" << C_RESET << " " << txt("✏️  Modifier un schème", "✏️  تعديل وزن") << "\n";
+    cout << C_BLUE << "[4]" << C_RESET << " " << txt("🗑️  Supprimer un schème", "🗑️  حذف وزن") << "\n";
     cout << C_BLUE << "[0]" << C_RESET << " " << txt("⏎ Retour", "⏎ رجوع") << "\n";
     print_rule();
     cout << C_YELLOW << txt("Choix", "الاختيار") << C_RESET << " : ";
@@ -283,16 +286,73 @@ void handle_client(socket_t client_fd, AVL& arbre, TableSchemes& table){
         return;
     }
 
+    if(target.rfind("/api/schemes-details", 0) == 0){
+        auto items = table.lister_detail();
+        ostringstream ss;
+        ss << "{\"schemes\":[";
+        for(size_t i=0;i<items.size();i++){
+            if(i>0) ss << ",";
+            ss << "{\"name\":\"" << json_escape(items[i].first) << "\",\"rule\":\"" << json_escape(items[i].second) << "\"}";
+        }
+        ss << "]}";
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", ss.str());
+        close_socket(client_fd);
+        return;
+    }
+
     if(target.rfind("/api/add-scheme", 0) == 0){
+        string scheme = get_query_param(target, "scheme");
+        string rule = get_query_param(target, "rule");
+        if(scheme.empty()){
+            send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"scheme is required\"}");
+            close_socket(client_fd);
+            return;
+        }
+        if(rule.empty()) rule = scheme;
+        table.ajouter(scheme, rule);
+        table.sauvegarder_vers_fichier("data/schemes.txt");
+        reinitialiser_index(arbre, table);
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", "{\"status\":\"ok\"}");
+        close_socket(client_fd);
+        return;
+    }
+
+    if(target.rfind("/api/update-scheme", 0) == 0){
+        string scheme = get_query_param(target, "scheme");
+        string rule = get_query_param(target, "rule");
+        if(scheme.empty() || rule.empty()){
+            send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"scheme and rule are required\"}");
+            close_socket(client_fd);
+            return;
+        }
+        if(!table.contient(scheme)){
+            send_response(client_fd, "404 Not Found", "application/json; charset=utf-8", "{\"error\":\"scheme not found\"}");
+            close_socket(client_fd);
+            return;
+        }
+        table.modifier(scheme, rule);
+        table.sauvegarder_vers_fichier("data/schemes.txt");
+        reinitialiser_index(arbre, table);
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", "{\"status\":\"ok\"}");
+        close_socket(client_fd);
+        return;
+    }
+
+    if(target.rfind("/api/delete-scheme", 0) == 0){
         string scheme = get_query_param(target, "scheme");
         if(scheme.empty()){
             send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"scheme is required\"}");
             close_socket(client_fd);
             return;
         }
-        table.ajouter(scheme, "فعل");
-        ofstream f("data/schemes.txt", ios::app);
-        f << scheme << "\n";
+        if(!table.contient(scheme)){
+            send_response(client_fd, "404 Not Found", "application/json; charset=utf-8", "{\"error\":\"scheme not found\"}");
+            close_socket(client_fd);
+            return;
+        }
+        table.supprimer(scheme);
+        table.sauvegarder_vers_fichier("data/schemes.txt");
+        reinitialiser_index(arbre, table);
         send_response(client_fd, "200 OK", "application/json; charset=utf-8", "{\"status\":\"ok\"}");
         close_socket(client_fd);
         return;
@@ -300,6 +360,7 @@ void handle_client(socket_t client_fd, AVL& arbre, TableSchemes& table){
 
     if(target.rfind("/api/derives", 0) == 0){
         string root = get_query_param(target, "root");
+        string schemes_param = get_query_param(target, "schemes");
         if(root.empty()){
             send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"root is required\"}");
             close_socket(client_fd);
@@ -312,6 +373,23 @@ void handle_client(socket_t client_fd, AVL& arbre, TableSchemes& table){
             return;
         }
         auto derives = generer_derives(n, table);
+        vector<string> allowed;
+        if(!schemes_param.empty()){
+            stringstream ss(schemes_param);
+            string item;
+            while(getline(ss, item, ',')){
+                if(!item.empty()) allowed.push_back(item);
+            }
+        }
+        if(!allowed.empty()){
+            vector<pair<string,string>> filtered;
+            for(const auto& d : derives){
+                if(find(allowed.begin(), allowed.end(), d.first) != allowed.end()){
+                    filtered.push_back(d);
+                }
+            }
+            derives = filtered;
+        }
         ostringstream ss;
         ss << "{\"valid\":true,\"derives\":[";
         for(size_t i=0;i<derives.size();i++){
@@ -321,6 +399,25 @@ void handle_client(socket_t client_fd, AVL& arbre, TableSchemes& table){
         }
         ss << "]}";
         send_response(client_fd, "200 OK", "application/json; charset=utf-8", ss.str());
+        close_socket(client_fd);
+        return;
+    }
+
+    if(target.rfind("/api/verify-root", 0) == 0){
+        string word = get_query_param(target, "word");
+        string root = get_query_param(target, "root");
+        if(word.empty() || root.empty()){
+            send_response(client_fd, "400 Bad Request", "application/json; charset=utf-8", "{\"error\":\"word and root are required\"}");
+            close_socket(client_fd);
+            return;
+        }
+        auto res = verifier_mot_racine(word, root, table, arbre);
+        ostringstream body;
+        body << "{\"word\":\"" << json_escape(word) << "\",";
+        body << "\"root\":\"" << json_escape(root) << "\",";
+        body << "\"valid\":" << (res.first ? "true" : "false") << ",";
+        body << "\"scheme\":\"" << json_escape(res.second) << "\"}";
+        send_response(client_fd, "200 OK", "application/json; charset=utf-8", body.str());
         close_socket(client_fd);
         return;
     }
@@ -405,6 +502,9 @@ int main(int argc, char** argv){
 
     AVL arbre;
     TableSchemes table;
+    if(!table.charger_depuis_fichier("data/schemes.txt")){
+        table.sauvegarder_vers_fichier("data/schemes.txt");
+    }
     charger_racines("data/racines.txt",arbre);
     
     // Construire l'index inversé pour optimiser verifier_mot() : O(n×k) → O(1)
@@ -479,14 +579,14 @@ int main(int argc, char** argv){
                 menu_schemes();
                 string sous; cin>>sous;
                 if(sous=="1"){
-                    vector<string> schemes = table.lister();
+                    auto schemes = table.lister_detail();
                     cout << C_CYAN << "\n📐 Schèmes disponibles (" << schemes.size() << ")" << C_RESET << "\n";
                     print_rule();
                     if(schemes.empty()){
                         cout << C_DIM << "Aucun schème" << C_RESET << "\n";
                     } else {
                         for(size_t i=0; i<schemes.size(); i++){
-                            cout << "  " << (i+1) << ". " << schemes[i] << "\n";
+                            cout << "  " << (i+1) << ". " << schemes[i].first << "  →  " << schemes[i].second << "\n";
                         }
                     }
                     print_rule();
@@ -495,11 +595,42 @@ int main(int argc, char** argv){
                     cout << C_YELLOW << "Nouveau schème" << C_RESET << " : ";
                     string sch; cin>>sch;
                     if(!table.contient(sch)){
-                        table.ajouter(sch, "فعل");
-                        ofstream f("data/schemes.txt",ios::app); f<<sch<<"\n";
+                        cout << C_YELLOW << "Règle" << C_RESET << " : ";
+                        string regle; cin>>regle;
+                        if(regle.empty()) regle = sch;
+                        table.ajouter(sch, regle);
+                        table.sauvegarder_vers_fichier("data/schemes.txt");
+                        reinitialiser_index(arbre, table);
                         cout << C_GREEN << "✅ Schème ajouté" << C_RESET << "\n";
                     } else {
                         cout << C_DIM << "Schème déjà existant" << C_RESET << "\n";
+                    }
+                }
+                else if(sous=="3"){
+                    cout << C_YELLOW << "Schème à modifier" << C_RESET << " : ";
+                    string sch; cin>>sch;
+                    if(!table.contient(sch)){
+                        cout << C_DIM << "Schème introuvable" << C_RESET << "\n";
+                    } else {
+                        cout << C_YELLOW << "Nouvelle règle" << C_RESET << " : ";
+                        string regle; cin>>regle;
+                        if(regle.empty()) regle = sch;
+                        table.modifier(sch, regle);
+                        table.sauvegarder_vers_fichier("data/schemes.txt");
+                        reinitialiser_index(arbre, table);
+                        cout << C_GREEN << "✅ Schème modifié" << C_RESET << "\n";
+                    }
+                }
+                else if(sous=="4"){
+                    cout << C_YELLOW << "Schème à supprimer" << C_RESET << " : ";
+                    string sch; cin>>sch;
+                    if(!table.contient(sch)){
+                        cout << C_DIM << "Schème introuvable" << C_RESET << "\n";
+                    } else {
+                        table.supprimer(sch);
+                        table.sauvegarder_vers_fichier("data/schemes.txt");
+                        reinitialiser_index(arbre, table);
+                        cout << C_GREEN << "✅ Schème supprimé" << C_RESET << "\n";
                     }
                 }
                 else if(sous=="0"){
