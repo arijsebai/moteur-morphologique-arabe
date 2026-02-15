@@ -152,6 +152,15 @@ async function addRoot() {
         if (!response.ok) {
             throw new Error('Erreur serveur');
         }
+        const data = await response.json();
+        if (!data.success) {
+            if (data.duplicate) {
+                rootsList.innerHTML = '<div class="message error">❌ الجذر موجود بالفعل</div>';
+            } else {
+                rootsList.innerHTML = '<div class="message error">❌ ' + (data.message || 'تعذر إضافة الجذر') + '</div>';
+            }
+            return;
+        }
         rootInput.value = '';
         rootsList.innerHTML = '<div class="message success">✅ تم إضافة الجذر بنجاح!</div>';
         setTimeout(() => {
@@ -208,6 +217,15 @@ async function addScheme() {
         const response = await fetch(`/api/add-scheme?scheme=${encodeURIComponent(schemeValue)}`);
         if (!response.ok) {
             throw new Error('Erreur serveur');
+        }
+        const data = await response.json();
+        if (!data.success) {
+            if (data.duplicate) {
+                schemesList.innerHTML = '<div class="message error">❌ الوزن موجود بالفعل</div>';
+            } else {
+                schemesList.innerHTML = '<div class="message error">❌ ' + (data.message || 'تعذر إضافة الوزن') + '</div>';
+            }
+            return;
         }
         schemeInput.value = '';
         schemesList.innerHTML = '<div class="message success">✅ تم إضافة الوزن بنجاح!</div>';

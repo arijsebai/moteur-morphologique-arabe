@@ -273,9 +273,12 @@ class MorphologicalHandler(http.server.SimpleHTTPRequestHandler):
             elif path == '/api/add-root':
                 root = params.get('root', [''])[0].strip()
                 if root:
-                    engine.roots.add(root)
-                    engine.save_roots()
-                    response = {'success': True, 'message': 'Racine ajoutée'}
+                    if root in engine.roots:
+                        response = {'success': False, 'message': 'الجذر موجود بالفعل', 'duplicate': True}
+                    else:
+                        engine.roots.add(root)
+                        engine.save_roots()
+                        response = {'success': True, 'message': 'Racine ajoutée'}
                 else:
                     response = {'success': False, 'message': 'Racine invalide'}
             
@@ -294,11 +297,14 @@ class MorphologicalHandler(http.server.SimpleHTTPRequestHandler):
                 scheme = params.get('scheme', [''])[0].strip()
                 rule = params.get('rule', [''])[0].strip()
                 if scheme:
-                    if not rule:
-                        rule = scheme
-                    engine.schemes[scheme] = rule
-                    engine.save_schemes()
-                    response = {'success': True, 'message': 'Schème ajouté'}
+                    if scheme in engine.schemes:
+                        response = {'success': False, 'message': 'الوزن موجود بالفعل', 'duplicate': True}
+                    else:
+                        if not rule:
+                            rule = scheme
+                        engine.schemes[scheme] = rule
+                        engine.save_schemes()
+                        response = {'success': True, 'message': 'Schème ajouté'}
                 else:
                     response = {'success': False, 'message': 'Schème invalide'}
 
