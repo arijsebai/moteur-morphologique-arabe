@@ -13,6 +13,10 @@ function showPage(pageId) {
             targetPage.style.opacity = '1';
         }, 50);
     }
+
+    if (pageId === 'derivesPage') {
+        loadSchemesForDerives();
+    }
     
     // Afficher le bouton retour
     document.getElementById('homeBtn').style.display = 'block';
@@ -164,7 +168,7 @@ async function loadSchemes() {
     const schemesList = document.getElementById('schemesList');
     schemesList.innerHTML = '<div class="message info">⏳ جارٍ التحميل...</div>';
     try {
-        const response = await fetch('/api/schemes');
+        const response = await fetch('/api/schemes-details');
         if (!response.ok) {
             throw new Error('Erreur serveur');
         }
@@ -178,7 +182,10 @@ async function loadSchemes() {
                 <p><strong>✅ الأوزان المتاحة (${data.schemes.length}):</strong></p>
             </div>
             <ul class="list">
-                ${data.schemes.map((scheme, index) => `<li>⚖️ ${index + 1}. ${scheme}</li>`).join('')}
+                ${data.schemes.map((item, index) => {
+                    const name = typeof item === 'string' ? item : (item.name || '');
+                    return `<li>⚖️ ${index + 1}. ${name}</li>`;
+                }).join('')}
             </ul>
         `;
     } catch (error) {
@@ -214,6 +221,66 @@ async function addScheme() {
     }
 }
 
+async function updateScheme() {
+    const nameInput = document.getElementById('editSchemeNameInput');
+    const ruleInput = document.getElementById('editSchemeRuleInput');
+    const nameValue = nameInput.value.trim();
+    const ruleValue = ruleInput.value.trim();
+    const resultDiv = document.getElementById('editSchemeResult');
+
+    if (!nameValue || !ruleValue) {
+        resultDiv.innerHTML = '<div class="message error">❌ الرجاء إدخال الوزن وقاعدة التحويل</div>';
+        return;
+    }
+
+    resultDiv.innerHTML = '<div class="message info">⏳ جارٍ التعديل...</div>';
+    try {
+        const params = new URLSearchParams({ scheme: nameValue, rule: ruleValue });
+        const response = await fetch(`/api/update-scheme?${params.toString()}`);
+        if (!response.ok) {
+            throw new Error('Erreur serveur');
+        }
+        nameInput.value = '';
+        ruleInput.value = '';
+        resultDiv.innerHTML = '<div class="message success">✅ تم تعديل الوزن بنجاح!</div>';
+        setTimeout(() => {
+            resultDiv.innerHTML = '';
+            switchTab('viewSchemes');
+            loadSchemes();
+        }, 1500);
+    } catch (error) {
+        resultDiv.innerHTML = '<div class="message error">❌ تعذر تعديل الوزن</div>';
+    }
+}
+
+async function deleteScheme() {
+    const nameInput = document.getElementById('deleteSchemeNameInput');
+    const nameValue = nameInput.value.trim();
+    const resultDiv = document.getElementById('deleteSchemeResult');
+
+    if (!nameValue) {
+        resultDiv.innerHTML = '<div class="message error">❌ الرجاء إدخال وزن للحذف</div>';
+        return;
+    }
+
+    resultDiv.innerHTML = '<div class="message info">⏳ جارٍ الحذف...</div>';
+    try {
+        const response = await fetch(`/api/delete-scheme?scheme=${encodeURIComponent(nameValue)}`);
+        if (!response.ok) {
+            throw new Error('Erreur serveur');
+        }
+        nameInput.value = '';
+        resultDiv.innerHTML = '<div class="message success">✅ تم حذف الوزن بنجاح!</div>';
+        setTimeout(() => {
+            resultDiv.innerHTML = '';
+            switchTab('viewSchemes');
+            loadSchemes();
+        }, 1500);
+    } catch (error) {
+        resultDiv.innerHTML = '<div class="message error">❌ تعذر حذف الوزن</div>';
+    }
+}
+
 async function generateDerives() {
     const deriveInput = document.getElementById('deriveRootInput');
     const rootValue = deriveInput.value.trim();
@@ -224,9 +291,17 @@ async function generateDerives() {
         return;
     }
 
+    const selectedSchemes = Array.from(document.querySelectorAll('.derive-scheme-checkbox:checked'))
+        .map(input => input.value)
+        .filter(v => v);
+
     derivesList.innerHTML = '<div class="message info">⏳ جارٍ التوليد...</div>';
     try {
-        const response = await fetch(`/api/derives?root=${encodeURIComponent(rootValue)}`);
+        const params = new URLSearchParams({ root: rootValue });
+        if (selectedSchemes.length > 0) {
+            params.set('schemes', selectedSchemes.join(','));
+        }
+        const response = await fetch(`/api/derives?${params.toString()}`);
         if (!response.ok) {
             throw new Error('Erreur serveur');
         }
@@ -248,19 +323,61 @@ async function generateDerives() {
     }
 }
 
+async function loadSchemesForDerives() {
+    const list = document.getElementById('derivesSchemesList');
+    if (!list) return;
+
+    list.innerHTML = '<div class="message info">⏳ جارٍ التحميل...</div>';
+    try {
+        const response = await fetch('/api/schemes');
+        if (!response.ok) {
+            throw new Error('Erreur serveur');
+        }
+        const data = await response.json();
+        if (!data.schemes || data.schemes.length === 0) {
+            list.innerHTML = '<div class="message error">❌ لا توجد أوزان</div>';
+            return;
+        }
+        const items = data.schemes.map(s => (typeof s === 'string' ? s : (s.name || ''))).filter(Boolean);
+        list.innerHTML = `
+            <div class="card-info">
+                <p><strong>✅ اختر الأوزان (${items.length}):</strong></p>
+            </div>
+            <div class="list">
+                ${items.map((name, index) => `
+                    <label class="list-item" style="display:block; margin:6px 0;">
+                        <input type="checkbox" class="derive-scheme-checkbox" value="${name}"> 
+                        ${index + 1}. ${name}
+                    </label>
+                `).join('')}
+            </div>
+        `;
+    } catch (error) {
+        list.innerHTML = '<div class="message error">❌ تعذر تحميل الأوزان</div>';
+    }
+}
+
+function selectAllSchemes(checked) {
+    document.querySelectorAll('.derive-scheme-checkbox').forEach(input => {
+        input.checked = checked;
+    });
+}
+
 async function verifyDerivation() {
     const verifyInput = document.getElementById('verifyWordInput');
     const wordValue = verifyInput.value.trim();
+    const verifyRootInput = document.getElementById('verifyRootInput');
+    const rootValue = verifyRootInput ? verifyRootInput.value.trim() : '';
     const verifyResults = document.getElementById('verifyResults');
 
-    if (!wordValue) {
-        verifyResults.innerHTML = '<div class="message error">❌ الرجاء إدخال كلمة</div>';
+    if (!wordValue || !rootValue) {
+        verifyResults.innerHTML = '<div class="message error">❌ الرجاء إدخال الكلمة والجذر</div>';
         return;
     }
 
     verifyResults.innerHTML = '<div class="message info">⏳ جارٍ التحقق...</div>';
     try {
-        const response = await fetch(`/api/verify-derivation?word=${encodeURIComponent(wordValue)}`);
+        const response = await fetch(`/api/verify-root?word=${encodeURIComponent(wordValue)}&root=${encodeURIComponent(rootValue)}`);
         if (!response.ok) {
             throw new Error('Erreur serveur');
         }
@@ -269,35 +386,20 @@ async function verifyDerivation() {
         if (!data.valid) {
             verifyResults.innerHTML = `
                 <div class="message error">
-                    <p>❌ الكلمة "${wordValue}" ليست مشتقة من أي جذر معروف</p>
+                    <p>❌ الكلمة "${wordValue}" لا تنتمي إلى الجذر "${rootValue}"</p>
                 </div>
             `;
             return;
         }
         
-        // Afficher les résultats
         let html = `
             <div class="result-item">
                 <p>✨ <strong>الكلمة:</strong> ${data.word}</p>
-                <p>✅ <strong>هذه كلمة صحيحة ومشتقة من جذر عربي!</strong></p>
-                <p>🌱 <strong>الجذر:</strong> ${data.root}</p>
+                <p>✅ <strong>هذه الكلمة تنتمي إلى الجذر المطلوب</strong></p>
+                <p>🌱 <strong>الجذر:</strong> ${data.root || rootValue}</p>
                 <p>⚖️ <strong>الوزن:</strong> ${data.scheme}</p>
             </div>
         `;
-        
-        // Si plusieurs correspondances possibles
-        if (data.possible_matches && data.possible_matches.length > 1) {
-            html += `
-                <div class="card-info">
-                    <p><strong>📋 احتمالات أخرى (${data.possible_matches.length}):</strong></p>
-                    <ul class="list">
-                        ${data.possible_matches.map((match, idx) => 
-                            `<li>🔹 ${idx + 1}. جذر: <strong>${match.root}</strong> - وزن: <strong>${match.scheme}</strong></li>`
-                        ).join('')}
-                    </ul>
-                </div>
-            `;
-        }
         
         verifyResults.innerHTML = html;
     } catch (error) {
@@ -331,7 +433,31 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    document.getElementById('editSchemeNameInput')?.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            updateScheme();
+        }
+    });
+
+    document.getElementById('editSchemeRuleInput')?.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            updateScheme();
+        }
+    });
+
+    document.getElementById('deleteSchemeNameInput')?.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            deleteScheme();
+        }
+    });
+
     document.getElementById('verifyWordInput')?.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            verifyDerivation();
+        }
+    });
+
+    document.getElementById('verifyRootInput')?.addEventListener('keypress', function(event) {
         if (event.key === 'Enter') {
             verifyDerivation();
         }

@@ -43,14 +43,17 @@ static string appliquer_regles_grammaire(string mot, const string& premiere_lett
         replace_all(mot, "أا", "آ");  // أا → آ
         replace_all(mot, "اأ", "آ");  // اأ → آ (cas inverse)
         replace_all(mot, "إا", "آ");  // إا → آ (hamza avec kasra)
+        // Cas spécifique : schème "افتعل" avec hamza initiale (ex: أخذ → اتخذ)
+        replace_all(mot, "اأت", "ات");
+        replace_all(mot, "آت", "ات");
     }
     return mot;
 }
 
-static string appliquer_scheme(const string& scheme, const string& racine){
+static string appliquer_regle(const string& regle, const string& racine){
     auto letters = split_utf8(racine);
-    if(letters.size() < 3) return scheme;
-    string mot = scheme;
+    if(letters.size() < 3) return regle;
+    string mot = regle;
     
     // Utiliser des marqueurs temporaires pour éviter les remplacements multiples
     // Ceci évite le problème quand une lettre de la racine apparaît dans le schème
@@ -93,9 +96,9 @@ vector<pair<string,string>> generer_derives(NoeudAVL* noeud, TableSchemes& table
     if(verbes_irreguliers.count(noeud->racine)){
         for(auto& p: verbes_irreguliers[noeud->racine]) derives.push_back(p);
     } else {
-        for(auto& sch: table.lister()){
-            string mot = appliquer_scheme(sch, noeud->racine);
-            derives.push_back({sch, mot});
+        for(auto& item: table.lister_detail()){
+            string mot = appliquer_regle(item.second, noeud->racine);
+            derives.push_back({item.first, mot});
         }
     }
     noeud->derives_valides=derives;
@@ -123,6 +126,19 @@ void construire_index(AVL& arbre, TableSchemes& table){
     }
 }
 
+static void vider_cache_derives(NoeudAVL* node){
+    if(!node) return;
+    node->derives_valides.clear();
+    vider_cache_derives(node->gauche);
+    vider_cache_derives(node->droite);
+}
+
+void reinitialiser_index(AVL& arbre, TableSchemes& table){
+    mot_to_racine_scheme.clear();
+    vider_cache_derives(arbre.racine);
+    construire_index(arbre, table);
+}
+
 pair<string,string> verifier_mot(const string& mot, AVL& arbre, TableSchemes& /*table*/){
     string mot_simpl = simplifier(mot);
     
@@ -135,4 +151,18 @@ pair<string,string> verifier_mot(const string& mot, AVL& arbre, TableSchemes& /*
     }
     
     return {"",""};
+}
+
+pair<bool,string> verifier_mot_racine(const string& mot, const string& racine, TableSchemes& table, AVL& arbre){
+    NoeudAVL* n = arbre.rechercher(arbre.racine, racine);
+    if(!n) return {false, ""};
+
+    auto derives = generer_derives(n, table);
+    string mot_simpl = simplifier(mot);
+    for(const auto& d : derives){
+        if(simplifier(d.second) == mot_simpl){
+            return {true, d.first};
+        }
+    }
+    return {false, ""};
 }

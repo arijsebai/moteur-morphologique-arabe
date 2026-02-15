@@ -10,16 +10,17 @@ import socketserver
 import json
 import urllib.parse
 import os
+import sys
 from pathlib import Path
 
-PORT = 8080
+DEFAULT_PORT = int(os.environ.get('PORT', '8080'))
 
 class MorphologicalEngine:
     """Moteur morphologique simplifié en Python"""
     
     def __init__(self):
         self.roots = set()
-        self.schemes = set()
+        self.schemes = {}
         self.load_data()
     
     def load_data(self):
@@ -32,9 +33,22 @@ class MorphologicalEngine:
         
         try:
             with open('data/schemes.txt', 'r', encoding='utf-8') as f:
-                self.schemes = {line.strip() for line in f if line.strip()}
+                schemes = {}
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    if '|' in line:
+                        name, rule = line.split('|', 1)
+                        name = name.strip()
+                        rule = rule.strip() or name
+                    else:
+                        name, rule = line, line
+                    if name:
+                        schemes[name] = rule
+                self.schemes = schemes
         except:
-            self.schemes = {'فعل', 'فاعل', 'مفعول', 'فعيل'}
+            self.schemes = {'فعل': 'فعل', 'فاعل': 'فاعل', 'مفعول': 'مفعول', 'فعيل': 'فعيل'}
     
     def save_roots(self):
         """Sauvegarder les racines"""
@@ -45,8 +59,9 @@ class MorphologicalEngine:
     def save_schemes(self):
         """Sauvegarder les schèmes"""
         with open('data/schemes.txt', 'w', encoding='utf-8') as f:
-            for scheme in sorted(self.schemes):
-                f.write(scheme + '\n')
+            for name in sorted(self.schemes.keys()):
+                rule = self.schemes.get(name, name)
+                f.write(f"{name}|{rule}\n")
     
     def analyze_word(self, word):
         """Analyser un mot"""
@@ -54,7 +69,7 @@ class MorphologicalEngine:
         
         # Logique simplifiée d'analyse
         for root in self.roots:
-            for scheme in self.schemes:
+            for scheme in self.schemes.keys():
                 # Vérification très simplifiée
                 if self._matches(word, root, scheme):
                     return {
@@ -97,6 +112,7 @@ class MorphologicalEngine:
         
         # Dictionnaire des transformations morphologiques
         # ف = première lettre racine, ع = deuxième, ل = troisième
+        shadda = '\u0651'
         transformations = {
             'فعل': root,                                      # forme de base
             'فاعل': f'{r1}ا{r2}{r3}',                         # اسم فاعل
@@ -106,38 +122,54 @@ class MorphologicalEngine:
             'تفعيل': f'ت{r1}{r2}ي{r3}',                       # مصدر
             'مفعل': f'م{r1}{r2}{r3}',                         # اسم مكان/زمان
             'استفعال': f'است{r1}{r2}ا{r3}',                  # استفعال
-            'فعّل': f'{r1}{r2}{r2}{r3}',                      # فعّل (تضعيف)
+            'فعّل': f'{r1}{r2}{shadda}{r3}',                  # فعّل (تضعيف)
             'مستفعل': f'مست{r1}{r2}{r3}',                     # اسم فاعل استفعال
             'انفعل': f'ان{r1}{r2}{r3}',                       # انفعال
             'تفاعل': f'ت{r1}ا{r2}{r3}',                       # تفاعل
             'فعال': f'{r1}{r2}ا{r3}',                         # فعال
             'فعول': f'{r1}{r2}و{r3}',                         # فعول
             'مفاعل': f'م{r1}ا{r2}{r3}',                       # مفاعل
-            'تفعّل': f'ت{r1}{r2}{r2}{r3}',                    # تفعّل
+            'تفعّل': f'ت{r1}{r2}{shadda}{r3}',                # تفعّل
             'افعال': f'ا{r1}{r2}ا{r3}',                       # أفعال
             'مفعلة': f'م{r1}{r2}{r3}ة',                       # مفعلة
             'فعلان': f'{r1}{r2}{r3}ان',                       # فعلان
             'فاعلة': f'{r1}ا{r2}{r3}ة',                       # فاعلة
         }
         
-        # Retourner la transformation si elle existe, sinon générer dynamiquement
-        if scheme in transformations:
-            return transformations[scheme]
+        rule = self.schemes.get(scheme, scheme)
+        # Retourner la transformation si elle existe et correspond au schème
+        if scheme in transformations and (rule == scheme or not rule):
+            word = transformations[scheme]
+            return self._apply_grammar(word, r1)
         
-        # Génération dynamique pour les schèmes non reconnus
+        # Génération dynamique selon la règle
         # Remplacer ف par r1, ع par r2, ل par r3
-        word = scheme.replace('ف', r1).replace('ع', r2).replace('ل', r3)
+        word = rule.replace('ف', r1).replace('ع', r2).replace('ل', r3)
+        return self._apply_grammar(word, r1)
+
+    def _apply_grammar(self, word, first_letter):
+        """Règles grammaticales pour hamza initiale"""
+        if first_letter == 'أ':
+            word = word.replace('أا', 'آ')
+            word = word.replace('اأ', 'آ')
+            word = word.replace('إا', 'آ')
+            word = word.replace('اأت', 'ات')
+            word = word.replace('آت', 'ات')
         return word
     
-    def generate_derives(self, root):
-        """Générer les dérivés d'une racine pour TOUS les schèmes disponibles"""
+    def generate_derives(self, root, selected_schemes=None):
+        """Générer les dérivés d'une racine pour des schèmes sélectionnés"""
         if root not in self.roots:
             return {'valid': False, 'derives': []}
         
         derives = []
-        
+
+        schemes_to_use = sorted(self.schemes.keys())
+        if selected_schemes:
+            schemes_to_use = [s for s in selected_schemes if s in self.schemes]
+
         # Générer un dérivé pour chaque schème disponible
-        for scheme in sorted(self.schemes):
+        for scheme in schemes_to_use:
             word = self.apply_scheme(root, scheme)
             if word:
                 derives.append({'word': word, 'scheme': scheme})
@@ -152,7 +184,7 @@ class MorphologicalEngine:
         # Parcourir toutes les racines
         for root in self.roots:
             # Vérifier tous les schèmes pour cette racine
-            for scheme in self.schemes:
+            for scheme in self.schemes.keys():
                 derived = self.apply_scheme(root, scheme)
                 if derived and derived == word:
                     possible_matches.append({
@@ -174,6 +206,26 @@ class MorphologicalEngine:
             'valid': False,
             'word': word
         }
+
+    def verify_word_root(self, word, root):
+        """Vérifier si un mot appartient à une racine donnée"""
+        word = word.strip()
+        root = root.strip()
+        if not word or not root:
+            return {'valid': False, 'word': word, 'root': root}
+        if root not in self.roots:
+            return {'valid': False, 'word': word, 'root': root}
+
+        for scheme in self.schemes.keys():
+            derived = self.apply_scheme(root, scheme)
+            if derived and derived == word:
+                return {
+                    'valid': True,
+                    'word': word,
+                    'root': root,
+                    'scheme': scheme
+                }
+        return {'valid': False, 'word': word, 'root': root}
 
 
 # Instance globale du moteur
@@ -228,24 +280,67 @@ class MorphologicalHandler(http.server.SimpleHTTPRequestHandler):
                     response = {'success': False, 'message': 'Racine invalide'}
             
             elif path == '/api/schemes':
-                response = {'schemes': sorted(list(engine.schemes))}
+                response = {'schemes': sorted(list(engine.schemes.keys()))}
+
+            elif path == '/api/schemes-details':
+                response = {
+                    'schemes': [
+                        {'name': name, 'rule': engine.schemes.get(name, name)}
+                        for name in sorted(engine.schemes.keys())
+                    ]
+                }
             
             elif path == '/api/add-scheme':
                 scheme = params.get('scheme', [''])[0].strip()
+                rule = params.get('rule', [''])[0].strip()
                 if scheme:
-                    engine.schemes.add(scheme)
+                    if not rule:
+                        rule = scheme
+                    engine.schemes[scheme] = rule
                     engine.save_schemes()
                     response = {'success': True, 'message': 'Schème ajouté'}
                 else:
                     response = {'success': False, 'message': 'Schème invalide'}
+
+            elif path == '/api/update-scheme':
+                scheme = params.get('scheme', [''])[0].strip()
+                rule = params.get('rule', [''])[0].strip()
+                if scheme and rule:
+                    if scheme in engine.schemes:
+                        engine.schemes[scheme] = rule
+                        engine.save_schemes()
+                        response = {'success': True, 'message': 'Schème modifié'}
+                    else:
+                        response = {'success': False, 'message': 'Schème introuvable'}
+                else:
+                    response = {'success': False, 'message': 'Paramètres invalides'}
+
+            elif path == '/api/delete-scheme':
+                scheme = params.get('scheme', [''])[0].strip()
+                if scheme:
+                    if scheme in engine.schemes:
+                        del engine.schemes[scheme]
+                        engine.save_schemes()
+                        response = {'success': True, 'message': 'Schème supprimé'}
+                    else:
+                        response = {'success': False, 'message': 'Schème introuvable'}
+                else:
+                    response = {'success': False, 'message': 'Paramètre invalide'}
             
             elif path == '/api/derives':
                 root = params.get('root', [''])[0]
-                response = engine.generate_derives(root)
+                schemes_param = params.get('schemes', [''])[0]
+                selected = [s.strip() for s in schemes_param.split(',') if s.strip()] if schemes_param else None
+                response = engine.generate_derives(root, selected)
             
             elif path == '/api/verify-derivation':
                 word = params.get('word', [''])[0]
                 response = engine.verify_derivation(word)
+
+            elif path == '/api/verify-root':
+                word = params.get('word', [''])[0]
+                root = params.get('root', [''])[0]
+                response = engine.verify_word_root(word, root)
             
             else:
                 response = {'error': 'Unknown endpoint'}
@@ -263,11 +358,21 @@ class MorphologicalHandler(http.server.SimpleHTTPRequestHandler):
 def main():
     """Démarrer le serveur"""
     os.chdir(Path(__file__).parent)
-    
-    with socketserver.TCPServer(("", PORT), MorphologicalHandler) as httpd:
+
+    port = DEFAULT_PORT
+    if '--port' in sys.argv:
+        try:
+            idx = sys.argv.index('--port')
+            port = int(sys.argv[idx + 1])
+        except Exception:
+            port = DEFAULT_PORT
+
+    socketserver.TCPServer.allow_reuse_address = True
+
+    with socketserver.TCPServer(("", port), MorphologicalHandler) as httpd:
         print("=" * 60)
         print(f"🚀 Serveur morphologique démarré")
-        print(f"📡 URL: http://localhost:{PORT}")
+        print(f"📡 URL: http://localhost:{port}")
         print(f"📁 Dossier: {os.getcwd()}")
         print("=" * 60)
         print("✅ Prêt à recevoir des requêtes...")
