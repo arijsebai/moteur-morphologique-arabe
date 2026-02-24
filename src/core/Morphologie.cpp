@@ -157,7 +157,14 @@ vector<pair<string,string>> generer_derives(NoeudAVL* noeud, TableSchemes& table
     if(!noeud->derives_valides.empty()) return noeud->derives_valides;
     vector<pair<string,string>> derives;
     if(verbes_irreguliers.count(noeud->racine)){
-        for(auto& p: verbes_irreguliers[noeud->racine]) derives.push_back(p);
+        // Pour verbes irréguliers, forcer فعل en PREMIER pour priorité dans l'index
+        if(verbes_irreguliers[noeud->racine].count("فعل")) {
+            derives.push_back({"فعل", verbes_irreguliers[noeud->racine]["فعل"]});
+        }
+        // Puis ajouter tous les autres schèmes
+        for(auto& p: verbes_irreguliers[noeud->racine]) {
+            if(p.first != "فعل") derives.push_back(p);
+        }
     } else {
         for(auto& item: table.lister_detail()){
             string mot = appliquer_regle(item.second, noeud->racine);
