@@ -12,8 +12,8 @@ SRC_DIR = src
 BUILD_DIR = build
 BIN_DIR = .
 
-# Fichiers
-SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
+# Fichiers - Inclure tous les sous-répertoires
+SOURCES = $(shell find $(SRC_DIR) -name '*.cpp')
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(BUILD_DIR)/%.o, $(SOURCES))
 EXECUTABLE = $(BIN_DIR)/moteur_morphologique
 
@@ -35,7 +35,7 @@ $(EXECUTABLE): $(OBJECTS)
 
 # Compilation des fichiers objets
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 	@echo "✓ Compilé : $<"
 

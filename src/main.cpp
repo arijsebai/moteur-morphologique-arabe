@@ -65,7 +65,7 @@ int main(int argc, char** argv){
         cout << C_CYAN << "Sélectionnez la langue / اختر اللغة" << C_RESET << "\n";
         cout << "[1] Français\n";
         cout << "[2] العربية\n";
-        cout << C_YELLOW << "Choix / الاختiار" << C_RESET << " : ";
+        cout << C_YELLOW << "Choix / الاختيار" << C_RESET << " : ";
         string choix_lang; 
         cin >> choix_lang;
         USE_ARABIC = (choix_lang == "2");

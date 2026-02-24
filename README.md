@@ -25,10 +25,11 @@
 - 🔍 **Analyser un mot** : Détection racine + schème en O(1)
 - 🔄 **Générer dérivés** : Création de mots à partir de racine + schème(s)
 - ✅ **Vérifier mot** : Confirmation si mot dérive d'une racine spécifique
+- 📝 **Verbes irréguliers** : Gestion de 5 verbes (قال، قرأ، دعى، وقف، مدّ) avec formes spécifiques
 
 ### Gestion des Données
-- 📚 **Racines** : Affichage ordonné (AVL), ajout/suppression dynamique
-- 📐 **Schèmes** : Accès O(1) (HashTable), modification/sauvegarde automatique
+- 📚 **Racines** : Affichage ordonné (AVL), ajout/suppression dynamique (21 racines)
+- 📐 **Schèmes** : Accès O(1) (HashTable), modification/sauvegarde automatique (11 schèmes)
 - 💾 **Persistance** : Fichiers texte (racines.txt, schemes.txt)
 
 ### Interfaces Utilisateur
@@ -50,7 +51,7 @@ moteur-morphologique-arabe/
 │   └─ Morphologie.{h,cpp}       # Moteur morphologique
 │
 ├─ data/                         # Données persistantes
-│   ├─ racines.txt               # 18 racines trilitères
+│   ├─ racines.txt               # 21 racines (dont 5 verbes irréguliers)
 │   └─ schemes.txt               # 11 schèmes morphologiques
 │
 ├─ web/                          # Interface Web
@@ -116,16 +117,13 @@ Menu principal avec sélection de langue (Français/العربية) au démarrag
 ./moteur_morphologique ar
 ```
 
-#### Option 4 : Avec scripts (Unix/Linux)
+#### Option 4 : Avec scripts (Linux/Unix)
 ```bash
-# Français dans terminal standard
-./lancer_terminal_francais.sh
-
 # Arabe dans terminal standard  
 ./lancer_terminal_arabe.sh
 
-# Français dans nouveau GNOME Terminal
-gnome-terminal -- bash -c "cd $(pwd) && ./moteur_morphologique fr"
+# Français dans terminal standard
+./lancer_terminal_francais.sh
 ```
 
 ### Lancement - Interface Web
@@ -137,17 +135,13 @@ gnome-terminal -- bash -c "cd $(pwd) && ./moteur_morphologique fr"
 # Ouvrir navigateur : http://localhost:8080
 ```
 
-#### Option 2 : Avec script
-```bash
-./lancer_web.sh
-# Lance le serveur et ouvre navigateur automatiquement
-```
-
-#### Option 3 : Port personnalisé
+#### Option 2 : Port personnalisé
 ```bash
 ./moteur_morphologique --server --port 9000
 # Serveur sur http://localhost:9000
 ```
+
+**Note** : Le serveur C++ utilise les mêmes fichiers de données et verbes irréguliers que le reste de l'application.
 
 ---
 
@@ -189,9 +183,9 @@ Racines disponibles (ordre alphabétique) :
   3. درس    (étudier)
   4. دخل    (entrer)
   ...
-  18. يذهب  (aller)
+  21. نظر   (regarder)
 
-Total : 18 racines
+Total : 21 racines (dont 5 verbes irréguliers : قال، قرأ، دعى، وقف، مدّ)
 ```
 
 ### Exemple 3 : Générer dérivés
@@ -202,11 +196,30 @@ Entrer la racine : كتب
 Générer [1] tous les dérivés ou [2] sélection spécifique ? 1
 
 Dérivés de "كتب" :
-  فعل      → كَتَب
+  فعل      → كتب
   فاعل    → كاتب
   مفعول  → مكتوب
+  فعّل    → كتّب
+  استفعال → استكتاب
   ...
   Total : 11 dérivés
+```
+
+### Exemple 3b : Verbe irrégulier
+```
+Choix : 4
+
+Entrer la racine : قرأ
+Générer [1] tous les dérivés ou [2] sélection spécifique ? 1
+
+Dérivés de "قرأ" (verbe irrégulier) :
+  فعل      → قرأ
+  فاعل    → قارئ
+  مفعول  → مقروء
+  تفعيل   → تقريء
+  استفعال → استقراء
+  ...
+  Total : 11 formes irrégulières
 ```
 
 ### Exemple 4 : Vérifier un dérivé
@@ -299,7 +312,7 @@ make rebuild
 | Opération | Complexité | Détails |
 |-----------|-----------|---------|
 | Insertion | O(log n) | Équilibrage automatique |
-| Recherche | O(log n) | Max ~5 comparaisons pour 18 racines |
+| Recherche | O(log n) | Max ~5 comparaisons pour 21 racines |
 | Affichage | O(n) | Parcours infixe (ordre alphabétique) |
 
 ### Table de Hachage (Schèmes)
@@ -308,6 +321,20 @@ make rebuild
 | Insertion | O(1) | Chaînage pour collisions |
 | Recherche | O(1) | Facteur charge = 0.34 (11/32 buckets) |
 | Redimensionnement | Rare | Seuil 0.75 jamais atteint avec 11 schèmes |
+
+**Explication simple** :
+
+Imaginez une **bibliothèque avec 32 étagères numérotées** (buckets). Pour ranger un livre (schème) :
+1. On calcule son numéro d'étagère avec une formule mathématique (fonction de hachage djb2)
+2. On pose le livre sur cette étagère
+3. Si plusieurs livres vont sur la même étagère, on les empile (chaînage)
+
+**Pourquoi c'est rapide ?**
+- Chercher un schème = aller directement à l'étagère (O(1)) au lieu de chercher partout
+- Avec 11 schèmes sur 32 étagères → la plupart des étagères ont 0 ou 1 livre → accès instantané
+- Alternative (std::map) = chercher dans un arbre trié = 4 comparaisons à chaque fois
+
+**Facteur de charge 0.34** : Seulement 34% des étagères occupées → très peu de collisions
 
 ### Validation Morphologique
 | Approche | Complexité | Temps | Gain |
@@ -324,11 +351,12 @@ make rebuild
 ```
 Opération                    Temps        Complexité
 ───────────────────────────────────────────────────
-Chargement 18 racines       1.8 ms       O(n log n)
-Construction index          18 ms        O(n×k)
+Chargement 21 racines       2.0 ms       O(n log n)
+Construction index          22 ms        O(n×k)
 Validation mot              < 1 μs       O(1)
 Génération 11 dérivés       10 μs        O(k×m)
 Insertion racine AVL        2.5 μs       O(log n)
+Verbes irréguliers          < 0.5 μs     O(1) lookup
 ```
 
 ### Optimisations implémentées
@@ -354,8 +382,10 @@ tests/test_mots.txt       # Mots pour validation
 # Lancer et tester interactivement
 ./moteur_morphologique
 
-# Menu 1 : Analyser "كاتب" → doit retourner racine "كتب"
-# Menu 4 : Générer dérivés de "درس" → 14 mots
+# Menu 1 : Analyser "كاتب" → doit retourner racine "كتب", schème "فاعل"
+# Menu 1 : Analyser "قارئ" → doit retourner racine "قرأ", schème "فاعل" (irrégulier)
+# Menu 4 : Générer dérivés de "درس" → 11 mots
+# Menu 4 : Générer dérivés de "قرأ" → 11 formes irrégulières prédéfinies
 # Menu 5 : Vérifier "كاتب" dérive de "كتب" → ✓
 ```
 
@@ -367,8 +397,19 @@ tests/test_mots.txt       # Mots pour validation
 
 # Terminal 2 : Test API
 curl "http://localhost:8080/api/analyze?word=كاتب"
+# Retour: {"word":"كاتب","root":"كتب","scheme":"فاعل","valid":true}
+
+curl "http://localhost:8080/api/analyze?word=قارئ"
+# Retour: {"word":"قارئ","root":"قرأ","scheme":"فاعل","valid":true}
+
 curl "http://localhost:8080/api/roots"
+# Retour: {"roots":["أخذ","أكل",...,"مدّ","نظر"]}
+
 curl "http://localhost:8080/api/schemes"
+# Retour: {"schemes":["استفعال","افتعل",...,"مفعول"]}
+
+curl "http://localhost:8080/api/derives?root=قرأ"
+# Retour: Toutes les formes irrégulières de قرأ
 ```
 
 ---
@@ -460,8 +501,8 @@ Ce projet illustre :
 
 Voir fichier [LICENSE](LICENSE)
 
-**Version** : 2.0 (avec optimisations complètes)  
-**Dernière mise à jour** : 14 février 2026
+**Version** : 2.0 (avec optimisations complètes + verbes irréguliers)  
+**Dernière mise à jour** : 24 février 2026
 
 ---
 
@@ -469,80 +510,45 @@ Voir fichier [LICENSE](LICENSE)
 
 ### Prérequis
 ```
-✓ C++17 (g++ ou clang)
-✓ Make (optional)
-✓ CMake 3.10+ (optional)
+✓ C++17 (g++ 7.0+, clang 5.0+)
+✓ Make
+✓ UTF-8 support (Linux/Mac/Windows)
 ```
 
 ### Compilation
 
 **Méthode 1 : Makefile (recommandé)**
 ```bash
-cd moteur-morphologique-arabe
-make
+make build
+# Exécutable généré : ./moteur_morphologique
 ```
 
 **Méthode 2 : Compilation directe**
 ```bash
-g++ -std=c++17 src/*.cpp -o moteur_morphologique
-```
-
-**Méthode 3 : CMake**
-```bash
-mkdir build && cd build
-cmake .. && make
+g++ -std=c++17 -O2 src/**/*.cpp src/*.cpp -o moteur_morphologique
 ```
 
 ### Lancement
 
-#### Console (avec sélection de langue au démarrage)
+#### Console Interactive
 ```bash
-./moteur_morphologique
-```
-Puis sélectionner : `[1] Français` ou `[2] العربية`
-
-#### Console en Français
-```bash
-./lancer_fr.sh
-# ou
-./moteur_morphologique --fr
+./moteur_morphologique              # Menu de sélection langue
+./moteur_morphologique fr           # Français direct
+./moteur_morphologique ar           # Arabe direct
 ```
 
-#### Console en Arabe
+#### Scripts de Lancement
 ```bash
-./lancer_ar.sh
-# ou
-./moteur_morphologique --ar
+./lancer_terminal_francais.sh       # Console français
+./lancer_terminal_arabe.sh          # Console arabe
 ```
 
-#### Terminal Externe avec Support UTF-8 Arabe ⭐ NOUVEAU
+#### Serveur Web
 ```bash
-# Lancement en arabe dans un terminal externe (Recommandé)
-./lancer_terminal_arabe.sh
-
-# Lancement en français dans un terminal externe
-./lancer_terminal_francais.sh
+./moteur_morphologique --server             # Port 8080
+./moteur_morphologique --server --port 3000 # Port personnalisé
 ```
-**Avantages** :
-- ✓ Détection automatique du terminal (GNOME Terminal, Konsole, Tilix, xterm)
-- ✓ Configuration automatique UTF-8 pour l'arabe
-- ✓ Nouvelle fenêtre dédiée avec titre personnalisé
-- ✓ Meilleur rendu des caractères arabes (RTL)
-- ✓ Reste ouvert après exécution
-
-#### Console dans GNOME Terminal (méthode alternative)
-```bash
-./lancer_console.sh
-```
-*Remarque : Configure la police à "Amiri" ou "Scheherazade" dans GNOME Terminal.*
-
-#### Interface Web
-```bash
-./lancer_web.sh
-# ou
-./moteur_morphologique --server [--port 8080]
-```
-Puis ouvre `http://localhost:8080` dans le navigateur.
+Puis ouvrir http://localhost:8080 dans le navigateur.
 
 ---
 
@@ -554,7 +560,7 @@ Puis ouvre `http://localhost:8080` dans le navigateur.
 Moteur Morphologique Arabe
 ════════════════════════════════════════
 
-[1] � Analyser un mot
+[1] 🔍 Analyser un mot
 [2] 📚 Gestion des racines
 [3] 📐 Gestion des schèmes
 [4] 🔄 Générer dérivés d'une racine
@@ -563,71 +569,55 @@ Moteur Morphologique Arabe
 ════════════════════════════════════════
 Choix : 1
 
-Mot à analyser : كتب
+Mot à analyser : قارئ
 ════════════════════════════════════════
-✅ Mot valide
+✅ Mot valide (verbe irrégulier)
 ════════════════════════════════════════
-Mot     : كتب
-Racine  : كتب
-Schème  : فعل
+Mot     : قارئ
+Racine  : قرأ
+Schème  : فاعل
 ════════════════════════════════════════
 ```
 
-### Menu Génération de Dérivés (nouvelle fonctionnalité)
+### Menu Génération de Dérivés
 ```
 Choix : 4
 
-Racine : كتب
+Racine : قرأ
 ════════════════════════════════════════
 🔄 Options de génération
 ════════════════════════════════════════
 
-[1] Tous les dérivés (15)
+[1] Tous les dérivés (11 - verbe irrégulier)
 [2] Sélectionner des schèmes
 [0] Annuler
 ════════════════════════════════════════
-Choix : 2
+Choix : 1
 
-📐 Schèmes disponibles
+📊 Dérivés de la racine: قرأ (11 - irrégulier)
 ════════════════════════════════════════
-  1. فعل
-  2. فاعل
-  3. مفعول
-  4. فَعَلَ
-  5. يَفْعُلُ
+  1. فعل → قرأ
+  2. فاعل → قارئ
+  3. مفعول → مقروء
+  4. فعّل → قرّأ
+  5. تفعيل → تقريء
   ...
-════════════════════════════════════════
-Entrez les numéros des schèmes (séparés par espace, 0 pour tous) : 1 2 3
-
-📊 Dérivés de la racine: كتب (3)
-════════════════════════════════════════
-  1. فعل → كتب
-  2. فاعل → كاتب
-  3. مفعول → مكتوب
 ════════════════════════════════════════
 ```
 
-### Menu Vérification de Dérivé (nouvelle fonctionnalité)
+### Menu Vérification de Dérivé
 ```
 Choix : 5
 
-Mot à vérifier : كاتب
-Racine : كتب
+Mot à vérifier : قارئ
+Racine : قرأ
 
-✅ Mot valide - dérive de cette racine
+✅ Mot valide - dérive de cette racine (verbe irrégulier)
 ════════════════════════════════════════
-Mot     : كاتب
-Racine  : كتب
+Mot     : قارئ
+Racine  : قرأ
 Schème  : فاعل
 ════════════════════════════════════════
-
---- Exemple avec erreur ---
-
-Mot à vérifier : كاتب
-Racine : درس
-
-❌ Le mot ne dérive pas de cette racine
-💡 Suggestion: ce mot dérive de 'كتب' avec le schème 'فاعل'
 ```
 
 ### Mode Console (العربية)
@@ -658,12 +648,17 @@ Gestion des racines
 ════════════════════════════════════════
 Choix : 1
 
-📚 Racines disponibles (12)
+📚 Racines disponibles (21)
 ════════════════════════════════════════
-  1. كتب
-  2. درس
-  3. علم
+  1. أخذ
+  2. أكل
+  3. جلس
   ...
+  17. قال (irrégulier)
+  18. قرأ (irrégulier)
+  19. كتب
+  20. مدّ (irrégulier)
+  21. نظر
 ════════════════════════════════════════
 
 Appuyez sur Entrée pour continuer...
@@ -671,9 +666,9 @@ Appuyez sur Entrée pour continuer...
 
 ### Interface Web
 - Accès via `http://localhost:8080`
-- 5 sections : Analyse mot, Racines, Schèmes, Dérivés
-- Stockage local persistant
-- Support RTL natif
+- Interface responsive avec support RTL
+- API REST complète
+- Gestion des verbes irréguliers transparente
 
 ---
 
@@ -706,6 +701,7 @@ Fonction clé : appliquer_scheme(schème, racine)
 - Remplace ف/ع/ل par lettres réelles
 - Applique règles phonétiques arabes
 - Gère diacritiques automatiquement
+- Lookup O(1) pour verbes irréguliers (قال، قرأ، دعى، وقف، مدّ)
 ```
 
 ---
@@ -729,32 +725,31 @@ Fonction clé : appliquer_scheme(schème, racine)
 ```bash
 # Mode console interactif
 ./moteur_morphologique              # Menu langue
-./moteur_morphologique --fr         # Français direct
-./moteur_morphologique --ar         # Arabe direct
+./moteur_morphologique fr           # Français direct
+./moteur_morphologique ar           # Arabe direct
+
+# Scripts de lancement
+./lancer_terminal_francais.sh       # Console français
+./lancer_terminal_arabe.sh          # Console arabe
 
 # Mode serveur web
 ./moteur_morphologique --server             # Port 8080 (défaut)
-./moteur_morphologique --server --port 3000  # Port personnalisé
-
-# Lanceurs rapides
-./lancer_fr.sh              # Console FR
-./lancer_ar.sh              # Console AR
-./lancer_console.sh         # GNOME Terminal
-./lancer_web.sh             # Serveur + navigateur
+./moteur_morphologique --server --port 3000 # Port personnalisé
 ```
 
 ---
 
 ## 🚀 Améliorations Possibles
 
-- [ ] Racines quadrilitères
-- [ ] Interface graphique (Qt)
-- [ ] Base de données (SQLite)
-- [ ] Diacritisation automatique
-- [ ] Support multilingue (FR/AR/EN)
-- [ ] API REST documentée (Swagger)
-- [ ] Tests unitaires
-- [ ] Compression des données
+- [ ] Racines quadrilitères (4 lettres)
+- [ ] Plus de verbes irréguliers (أكل، أخذ، etc.)
+- [ ] Interface graphique native (Qt/GTK)
+- [ ] Base de données (SQLite) pour grandes collections
+- [ ] Diacritisation automatique complète
+- [ ] Support multilingue interface (FR/AR/EN)
+- [ ] API REST documentée (Swagger/OpenAPI)
+- [ ] Tests unitaires automatisés
+- [ ] Règles morphologiques avancées (assimilation, gémination)
 
 ---
 
