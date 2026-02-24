@@ -1,0 +1,32 @@
+# Cas de tests invalides - Mots qui ne doivent PAS être reconnus
+# Format: mot | raison
+
+# Mots qui n'existent pas dans la morphologie arabe
+زظغ|racine inexistante
+كككك|combinaison invalide
+ااااا|voyelles seules
+
+# Mots avec mauvaise construction morphologique
+كبت|ordre incorrect des lettres de كتب
+بكت|ordre incorrect des lettres de كتب
+تبك|ordre incorrect des lettres de كتب
+
+# Mots d'autres racines non chargées
+شجر|racine non chargée
+برد|racine non chargée
+سفر|racine non chargée
+
+# Mots mal formés
+ك|trop court
+كت|trop court
+كتبكتب|répétition invalide
+
+# Mots avec caractères non arabes
+hello|caractères latins
+123|chiffres
+كتب123|mélange arabe et chiffres
+
+# Formes qui n'existent pas pour les racines existantes
+كوتب|forme inventée pour كتب
+كيتب|forme inventée pour كتب
+متكتب|forme invalide
