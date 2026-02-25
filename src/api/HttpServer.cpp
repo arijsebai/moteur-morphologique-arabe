@@ -11,10 +11,13 @@ using namespace std;
 void send_response(socket_t client_fd, const string& status, 
                    const string& content_type, const string& body){
     ostringstream ss;
+    // use classic "C" locale for headers to prevent thousands separators
+    ss.imbue(std::locale::classic());
     ss << "HTTP/1.1 " << status << "\r\n";
     ss << "Content-Type: " << content_type << "\r\n";
     ss << "Access-Control-Allow-Origin: *\r\n";
-    ss << "Content-Length: " << body.size() << "\r\n";
+    // convert length with to_string to avoid any locale grouping as well
+    ss << "Content-Length: " << std::to_string(body.size()) << "\r\n";
     ss << "Connection: close\r\n\r\n";
     ss << body;
     string response = ss.str();
