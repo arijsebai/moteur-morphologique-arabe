@@ -133,7 +133,7 @@ void CLIHandler::handleManageSchemes(){
             break;
         }
         else {
-            cout << C_RED << "❌ " << txt("Choix invalide", "اختiار غير صحيح") << C_RESET << "\n";
+            cout << C_RED << "❌ " << txt("Choix invalide", "اختيار غير صحيح") << C_RESET << "\n";
         }
     }
 }

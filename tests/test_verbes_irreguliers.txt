@@ -1,0 +1,36 @@
+# Tests spécifiques pour verbes irréguliers
+# Vérification que les 5 verbes irréguliers sont correctement gérés
+
+# Test 1: Vérifier que قال a bien ses formes irrégulières
+قال|قال|فعل|VALIDE
+قائل|قال|فاعل|VALIDE
+مقول|قال|مفعول|VALIDE
+
+# Test 2: Vérifier que قرأ (avec hamza) est traité comme irrégulier
+قرأ|قرأ|فعل|VALIDE
+قارئ|قرأ|فاعل|VALIDE
+مقروء|قرأ|مفعول|VALIDE
+استقراء|قرأ|استفعال|VALIDE
+
+# Test 3: Vérifier دعى (verbe défectueux)
+دعى|دعى|فعل|VALIDE
+داعي|دعى|فاعل|VALIDE
+مدعو|دعى|مفعول|VALIDE
+ادّعى|دعى|افتعل|VALIDE
+
+# Test 4: Vérifier وقف (régulier mais ajouté comme test)
+وقف|وقف|فعل|VALIDE
+واقف|وقف|فاعل|VALIDE
+موقوف|وقف|مفعول|VALIDE
+موقف|وقف|مفعل|VALIDE
+
+# Test 5: Vérifier مدّ (verbe doublé)
+مدّ|مدّ|فعل|VALIDE
+مادّ|مدّ|فاعل|VALIDE
+ممدود|مدّ|مفعول|VALIDE
+امتدّ|مدّ|افتعل|VALIDE
+
+# Test 6: Vérifier que les formes régulières ne sont PAS générées
+# Ces mots ne doivent PAS être validés car ce sont les formes régulières
+قاول|INVALIDE|forme régulière non utilisée pour قال
+قرائ|INVALIDE|forme régulière non utilisée pour قرأ

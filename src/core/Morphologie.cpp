@@ -2,8 +2,71 @@
 #include <algorithm>
 
 map<string,map<string,string>> verbes_irreguliers = {
-    {"قرأ", {{"فعل","قرأ"},{"مفعول","مَقْرُوء"},{"فاعل","قارئ"}}},
-    {"قال", {{"فعل","قال"},{"مفعول","مَقُول"},{"فاعل","قائل"}}}
+    {"قال", {
+        {"فعل","قال"},
+        {"فاعل","قائل"},
+        {"مفعول","مقول"},
+        {"فعّل","قوّل"},
+        {"تفعيل","تقويل"},
+        {"افتعل","اقتال"},
+        {"انفعل","انقال"},
+        {"تفاعل","تقاول"},
+        {"استفعال","استقال"},
+        {"مفعل","مقال"},
+        {"مستفعل","مستقيل"}
+    }},
+    {"قرأ", {
+        {"فعل","قرأ"},
+        {"فاعل","قارئ"},
+        {"مفعول","مقروء"},
+        {"فعّل","قرّأ"},
+        {"تفعيل","تقريء"},
+        {"افتعل","اقترأ"},
+        {"انفعل","انقرأ"},
+        {"تفاعل","تقارأ"},
+        {"استفعال","استقراء"},
+        {"مفعل","مقرأ"},
+        {"مستفعل","مستقرئ"}
+    }},
+    {"دعى", {
+        {"فعل","دعى"},
+        {"فاعل","داعي"},
+        {"مفعول","مدعو"},
+        {"فعّل","دعّى"},
+        {"تفعيل","تدعية"},
+        {"افتعل","ادّعى"},
+        {"انفعل","اندعى"},
+        {"تفاعل","تداعى"},
+        {"استفعال","استدعى"},
+        {"مفعل","مدعى"},
+        {"مستفعل","مستدعى"}
+    }},
+    {"وقف", {
+        {"فعل","وقف"},
+        {"فاعل","واقف"},
+        {"مفعول","موقوف"},
+        {"فعّل","وقّف"},
+        {"تفعيل","توقيف"},
+        {"افتعل","اتّقف"},
+        {"انفعل","انوقف"},
+        {"تفاعل","تواقف"},
+        {"استفعال","استوقف"},
+        {"مفعل","موقف"},
+        {"مستفعل","مستوقف"}
+    }},
+    {"مدّ", {
+        {"فعل","مدّ"},
+        {"فاعل","مادّ"},
+        {"مفعول","ممدود"},
+        {"فعّل","مدّد"},
+        {"تفعيل","تمديد"},
+        {"افتعل","امتدّ"},
+        {"انفعل","انمدّ"},
+        {"تفاعل","تمادّ"},
+        {"استفعال","استمدّ"},
+        {"مفعل","ممدّ"},
+        {"مستفعل","مستمدّ"}
+    }}
 };
 
 map<string,pair<string,string>> mot_to_racine_scheme;
@@ -94,7 +157,14 @@ vector<pair<string,string>> generer_derives(NoeudAVL* noeud, TableSchemes& table
     if(!noeud->derives_valides.empty()) return noeud->derives_valides;
     vector<pair<string,string>> derives;
     if(verbes_irreguliers.count(noeud->racine)){
-        for(auto& p: verbes_irreguliers[noeud->racine]) derives.push_back(p);
+        // Pour verbes irréguliers, forcer فعل en PREMIER pour priorité dans l'index
+        if(verbes_irreguliers[noeud->racine].count("فعل")) {
+            derives.push_back({"فعل", verbes_irreguliers[noeud->racine]["فعل"]});
+        }
+        // Puis ajouter tous les autres schèmes
+        for(auto& p: verbes_irreguliers[noeud->racine]) {
+            if(p.first != "فعل") derives.push_back(p);
+        }
     } else {
         for(auto& item: table.lister_detail()){
             string mot = appliquer_regle(item.second, noeud->racine);
