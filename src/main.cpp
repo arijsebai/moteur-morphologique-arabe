@@ -15,7 +15,6 @@
 #include "api/HttpServer.h"
 #include "data/DataLoader.h"
 #include "utils/Colors.h"
-#include "cli/UI.h"
 
 using namespace std;
 
