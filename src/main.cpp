@@ -11,6 +11,7 @@
 #include "core/Morphologie.h"
 #include "cli/CLIHandler.h"
 #include "cli/Localization.h"
+#include "cli/UI.h"
 #include "api/HttpServer.h"
 #include "data/DataLoader.h"
 #include "utils/Colors.h"
