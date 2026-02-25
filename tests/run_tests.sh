@@ -1,4 +1,3 @@
-#!/bin/bash
 # Script de test automatique pour le moteur morphologique
 
 echo "=========================================="
